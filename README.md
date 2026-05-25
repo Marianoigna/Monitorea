@@ -1,4 +1,4 @@
-# ERROR PROOFING — AIS BOX
+﻿# CONTROL_TEMPERATURA — SENSOR_TEMPERATURA
 
 Monitor de temperatura en tiempo real usando **Django**, **WebSockets** y **MQTT**.  
 Los datos llegan desde un sensor (o simulador MQTTX) a través de un broker MQTT público, se almacenan en SQLite3 y se reflejan instantáneamente en el dashboard sin recargar la página.
@@ -44,14 +44,14 @@ Los datos llegan desde un sensor (o simulador MQTTX) a través de un broker MQTT
 ## Estructura del proyecto
 
 ```
-ERROR PROOFING/
+CONTROL_TEMPERATURA/
 ├── levantar_servidor.bat        # Script para levantar todo con un doble clic
 ├── activar_entorno.bat          # Activa el entorno virtual
 ├── .gitignore
-└── ERROR_PROOFING/
+└── CONTROL_TEMPERATURA/
     ├── manage.py
     ├── mqtt_subscriber.py       # Puente MQTT → API REST
-    ├── AIS_BOX/                 # App principal
+    ├── SENSOR_TEMPERATURA/                 # App principal
     │   ├── models.py            # Modelo Temperatura
     │   ├── views.py             # API REST + vista dashboard
     │   ├── consumers.py         # WebSocket consumer
@@ -59,9 +59,9 @@ ERROR PROOFING/
     │   ├── urls.py
     │   ├── routing.py
     │   └── templates/
-    │       └── AIS_BOX/
+    │       └── SENSOR_TEMPERATURA/
     │           └── dashboard.html
-    └── ERROR_PROOFING/
+    └── CONTROL_TEMPERATURA/
         ├── settings.py
         ├── asgi.py
         └── urls.py
@@ -74,8 +74,8 @@ ERROR PROOFING/
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/Marianoigna/ERROR_PROOFING.git
-cd ERROR_PROOFING
+git clone https://github.com/Marianoigna/Control_Temperatura.git
+cd Control_Temperatura
 ```
 
 ### 2. Crear y activar el entorno virtual
@@ -96,7 +96,7 @@ pip install django djangorestframework channels daphne paho-mqtt requests
 ### 4. Aplicar migraciones
 
 ```bash
-cd ERROR_PROOFING
+cd Control_Temperatura
 python manage.py migrate
 ```
 
@@ -115,13 +115,13 @@ Abrir **dos terminales** con el entorno virtual activado:
 
 **Terminal 1 — Django:**
 ```bash
-cd ERROR_PROOFING
+cd Control_Temperatura
 python manage.py runserver
 ```
 
 **Terminal 2 — MQTT Subscriber:**
 ```bash
-cd ERROR_PROOFING
+cd Control_Temperatura
 python mqtt_subscriber.py
 ```
 
