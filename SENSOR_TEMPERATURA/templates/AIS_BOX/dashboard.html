@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIS BOX — Monitor de Temperatura</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #8b949e;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 3rem 4rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+
+        .sensor-label {
+            font-size: 0.85rem;
+            color: #8b949e;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+        }
+
+        .temperatura-valor {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #58a6ff;
+            line-height: 1;
+            transition: color 0.4s ease;
+        }
+
+        .temperatura-valor.caliente { color: #f85149; }
+        .temperatura-valor.frio     { color: #79c0ff; }
+
+        .unidad {
+            font-size: 2rem;
+            color: #8b949e;
+            margin-left: 0.3rem;
+        }
+
+        .timestamp {
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            color: #484f58;
+        }
+
+        .status {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: pulse 1.5s infinite;
+        }
+        .dot.desconectado { background: #f85149; animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+        .historico {
+            margin-top: 2.5rem;
+            width: 100%;
+        }
+        .historico h3 {
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            color: #484f58;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+        .historico ul {
+            list-style: none;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .historico ul li {
+            font-size: 0.8rem;
+            color: #8b949e;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #21262d;
+        }
+    </style>
+</head>
+<body>
+
+<h1>AIS BOX — Error Proofing</h1>
+
+<div class="card">
+    <div class="sensor-label" id="sensor-id">SENSOR_01</div>
+
+    <div>
+        <span class="temperatura-valor" id="temperatura">
+            {% if ultima %}{{ ultima.valor }}{% else %}--{% endif %}
+        </span>
+        <span class="unidad">°C</span>
+    </div>
+
+    <div class="timestamp" id="timestamp">
+        {% if ultima %}Última lectura: {{ ultima.timestamp }}{% else %}Sin datos aún{% endif %}
+    </div>
+
+    <div class="status">
+        <div class="dot desconectado" id="ws-dot"></div>
+        <span id="ws-status">Conectando...</span>
+    </div>
+
+    <div class="historico">
+        <h3>Historial reciente</h3>
+        <ul id="historico-lista">
+            {% if ultima %}
+            <li>{{ ultima.sensor_id }} → {{ ultima.valor }}°C @ {{ ultima.timestamp }}</li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+
+<script>
+    const wsUrl = `ws://${window.location.host}/ws/temperatura/`;
+    let socket;
+
+    function conectar() {
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+            document.getElementById('ws-dot').classList.remove('desconectado');
+            document.getElementById('ws-status').textContent = 'Conectado en tiempo real';
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const valorEl = document.getElementById('temperatura');
+
+            // Actualizar valor
+            valorEl.textContent = data.valor.toFixed(1);
+            document.getElementById('sensor-id').textContent = data.sensor_id.toUpperCase();
+            document.getElementById('timestamp').textContent = `Última lectura: ${new Date(data.timestamp).toLocaleString()}`;
+
+            // Color según temperatura
+            valorEl.classList.remove('caliente', 'frio');
+            if (data.valor >= 40) valorEl.classList.add('caliente');
+            else if (data.valor <= 10) valorEl.classList.add('frio');
+
+            // Agregar al historial
+            const li = document.createElement('li');
+            li.textContent = `${data.sensor_id} → ${data.valor}°C @ ${new Date(data.timestamp).toLocaleString()}`;
+            const lista = document.getElementById('historico-lista');
+            lista.insertBefore(li, lista.firstChild);
+            if (lista.children.length > 20) lista.removeChild(lista.lastChild);
+        };
+
+        socket.onclose = () => {
+            document.getElementById('ws-dot').classList.add('desconectado');
+            document.getElementById('ws-status').textContent = 'Desconectado — reintentando...';
+            setTimeout(conectar, 3000);  // reconexión automática
+        };
+
+        socket.onerror = () => socket.close();
+    }
+
+    conectar();
+</script>
+
+</body>
+</html>

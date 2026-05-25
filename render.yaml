@@ -1,0 +1,19 @@
+﻿services:
+
+  # ── Servidor web (Django + Daphne + MQTT integrado) ───────────────────────
+  - type: web
+    name: control-heladera-web
+    runtime: python
+    buildCommand: bash build_render.sh
+    startCommand: bash start_web.sh
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: CONTROL_TEMPERATURA.settings
+      - key: MQTT_AUTOSTART
+        value: "1"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: PYTHON_VERSION
+        value: "3.12.0"

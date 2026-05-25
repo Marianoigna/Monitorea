@@ -1,0 +1,52 @@
+# ── Entorno virtual ──────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# ── Django ───────────────────────────────────────────────────
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# ── Distribución / empaquetado ────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+# ── Tests y cobertura ─────────────────────────────────────────
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+
+# ── Editores / IDEs ───────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Variables de entorno ──────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Archivos estáticos colectados ────────────────────────────
+staticfiles/
+static_root/

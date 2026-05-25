@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONTROL TEMPERATURA Y VOLTAJE</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            gap: 1.5rem;
+        }
+
+        .card-grafico {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 380px;
+            height: 380px;
+        }
+
+        .card-grafico h3 {
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            color: #484f58;
+            margin-bottom: 1.2rem;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #8b949e;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 380px;
+            height: 380px;
+        }
+
+        .sensor-label {
+            font-size: 0.85rem;
+            color: #8b949e;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+        }
+
+        .temperatura-valor {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #58a6ff;
+            line-height: 1;
+            transition: color 0.4s ease;
+        }
+
+        .temperatura-valor.caliente { color: #f85149; }
+        .temperatura-valor.frio     { color: #79c0ff; }
+
+        .unidad {
+            font-size: 2rem;
+            color: #8b949e;
+            margin-left: 0.3rem;
+        }
+
+        .timestamp {
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            color: #484f58;
+        }
+
+        .status {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: pulse 1.5s infinite;
+        }
+        .dot.desconectado { background: #f85149; animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+
+        .voltaje-valor {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #3fb950;
+            line-height: 1;
+            transition: color 0.4s ease;
+        }
+        .voltaje-valor.bajo { color: #f85149; }
+
+        .panels-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+    </style>
+</head>
+<body>
+
+<h1>CONTROL TEMPERATURA Y VOLTAJE</h1>
+
+<div class="panels-wrapper">
+
+<div class="panel">
+<div class="card">
+    <div class="sensor-label" id="sensor-id">SENSOR TEMPERATURA</div>
+
+    <div>
+        <span class="temperatura-valor" id="temperatura">
+            {% if ultima %}{{ ultima.valor }}{% else %}--{% endif %}
+        </span>
+        <span class="unidad">°C</span>
+    </div>
+
+    <div class="timestamp" id="timestamp">
+        {% if ultima %}Última lectura: {{ ultima.timestamp }}{% else %}Sin datos aún{% endif %}
+    </div>
+
+    <div class="status">
+        <div class="dot desconectado" id="ws-dot"></div>
+        <span id="ws-status">Conectando...</span>
+    </div>
+
+
+</div>
+
+<div class="card-grafico">
+    <h3>Últimas 5 lecturas</h3>
+    <canvas id="grafico-temp" width="320" height="280"></canvas>
+</div>
+
+</div>
+
+<!-- PANEL VOLTAJE -->
+<div class="panel">
+<div class="card">
+    <div class="sensor-label" id="volt-sensor-id">SENSOR VOLTAJE</div>
+
+    <div>
+        <span class="voltaje-valor" id="voltaje">
+            {% if ultimo_volt %}{{ ultimo_volt.valor }}{% else %}--{% endif %}
+        </span>
+        <span class="unidad">V</span>
+    </div>
+
+    <div class="timestamp" id="volt-timestamp">
+        {% if ultimo_volt %}Última lectura: {{ ultimo_volt.timestamp }}{% else %}Sin datos aún{% endif %}
+    </div>
+
+    <div class="status">
+        <div class="dot desconectado" id="ws-volt-dot"></div>
+        <span id="ws-volt-status">Conectando...</span>
+    </div>
+</div>
+
+<div class="card-grafico">
+    <h3>Voltaje actual</h3>
+    <canvas id="grafico-volt" width="320" height="280"></canvas>
+</div>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // ── Datos iniciales desde Django ─────────────────────────────────────────
+    const initLabels = [{% for r in ultimos %}"{{ r.timestamp|date:'H:i:s' }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+    const initData   = [{% for r in ultimos %}{{ r.valor }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+    // ── Chart.js ─────────────────────────────────────────────────────────────
+    const ctx = document.getElementById('grafico-temp').getContext('2d');
+    const grafico = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: initLabels,
+            datasets: [{
+                label: 'Temperatura (°C)',
+                data: initData,
+                borderColor: '#58a6ff',
+                backgroundColor: 'rgba(88,166,255,0.1)',
+                borderWidth: 2,
+                pointBackgroundColor: '#58a6ff',
+                pointRadius: 5,
+                tension: 0.3,
+                fill: true,
+            }]
+        },
+        options: {
+            animation: { duration: 400 },
+            scales: {
+                x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+                y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+            },
+            plugins: {
+                legend: { labels: { color: '#8b949e' } }
+            }
+        }
+    });
+
+    function agregarPuntoGrafico(valor, timestamp) {
+        const hora = new Date(timestamp).toLocaleTimeString();
+        grafico.data.labels.push(hora);
+        grafico.data.datasets[0].data.push(valor);
+        if (grafico.data.labels.length > 5) {
+            grafico.data.labels.shift();
+            grafico.data.datasets[0].data.shift();
+        }
+        grafico.update();
+    }
+
+    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${wsProto}://${window.location.host}/ws/temperatura/`;
+    let socket;
+
+    function conectar() {
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+            document.getElementById('ws-dot').classList.remove('desconectado');
+            document.getElementById('ws-status').textContent = 'Conectado en tiempo real';
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const valorEl = document.getElementById('temperatura');
+
+            // Actualizar valor
+            valorEl.textContent = data.valor.toFixed(1);
+            document.getElementById('sensor-id').textContent = data.sensor_id.toUpperCase();
+            document.getElementById('timestamp').textContent = `Última lectura: ${new Date(data.timestamp).toLocaleString()}`;
+
+            // Color según temperatura
+            valorEl.classList.remove('caliente', 'frio');
+            if (data.valor >= 40) valorEl.classList.add('caliente');
+            else if (data.valor <= 10) valorEl.classList.add('frio');
+
+            // Actualizar gráfico
+            agregarPuntoGrafico(data.valor, data.timestamp);
+        };
+
+        socket.onclose = () => {
+            document.getElementById('ws-dot').classList.add('desconectado');
+            document.getElementById('ws-status').textContent = 'Desconectado — reintentando...';
+            setTimeout(conectar, 3000);  // reconexión automática
+        };
+
+        socket.onerror = () => socket.close();
+    }
+
+    conectar();
+
+    // ── VOLTAJE WebSocket + Chart barra ──────────────────────────────────────
+    const ctxVolt = document.getElementById('grafico-volt').getContext('2d');
+    const valorInicialVolt = {% if ultimo_volt %}{{ ultimo_volt.valor }}{% else %}0{% endif %};
+    const colorBarraVolt = valorInicialVolt < 180 ? '#f85149' : '#3fb950';
+
+    const graficoVolt = new Chart(ctxVolt, {
+        type: 'bar',
+        data: {
+            labels: ['Voltaje'],
+            datasets: [{
+                label: 'Voltaje (V)',
+                data: [valorInicialVolt],
+                backgroundColor: [colorBarraVolt],
+                borderRadius: 8,
+                barThickness: 80,
+            }]
+        },
+        options: {
+            animation: { duration: 400 },
+            scales: {
+                x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+                y: {
+                    ticks: { color: '#8b949e' },
+                    grid: { color: '#21262d' },
+                    min: 0,
+                    max: 300,
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#8b949e' } }
+            }
+        }
+    });
+
+    function actualizarGraficoVolt(valor) {
+        const color = valor < 180 ? '#f85149' : '#3fb950';
+        graficoVolt.data.datasets[0].data[0] = valor;
+        graficoVolt.data.datasets[0].backgroundColor[0] = color;
+        graficoVolt.update();
+    }
+
+    const wsVoltProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsVoltUrl = `${wsVoltProto}://${window.location.host}/ws/voltaje/`;
+    let socketVolt;
+
+    function conectarVolt() {
+        socketVolt = new WebSocket(wsVoltUrl);
+
+        socketVolt.onopen = () => {
+            document.getElementById('ws-volt-dot').classList.remove('desconectado');
+            document.getElementById('ws-volt-status').textContent = 'Conectado en tiempo real';
+        };
+
+        socketVolt.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const valorEl = document.getElementById('voltaje');
+
+            valorEl.textContent = data.valor.toFixed(1);
+            document.getElementById('volt-sensor-id').textContent = data.sensor_id.toUpperCase();
+            document.getElementById('volt-timestamp').textContent = `Última lectura: ${new Date(data.timestamp).toLocaleString()}`;
+
+            valorEl.classList.toggle('bajo', data.valor < 180);
+            actualizarGraficoVolt(data.valor);
+        };
+
+        socketVolt.onclose = () => {
+            document.getElementById('ws-volt-dot').classList.add('desconectado');
+            document.getElementById('ws-volt-status').textContent = 'Desconectado — reintentando...';
+            setTimeout(conectarVolt, 3000);
+        };
+
+        socketVolt.onerror = () => socketVolt.close();
+    }
+
+    conectarVolt();
+</script>
+
+</body>
+</html>
