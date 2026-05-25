@@ -4,7 +4,60 @@ Plataforma IoT multi-usuario para **monitoreo de sensores en tiempo real**.
 Los datos llegan desde sensores físicos (o simuladores MQTTX) a través de MQTT, se persisten en base de datos y se visualizan instantáneamente en dashboards personalizados por usuario y ubicación — sin recargar la página.
 
 > **Estado del proyecto:** en desarrollo activo.  
-> La arquitectura está diseñada para escalar en [Render](https://render.com) con autenticación, dashboards por usuario, reportes históricos y sistema de alertas configurables.
+> La arquitectura está diseñada para escalar en [Render](https://render.com) con autenticación, dashboards por usuario, reportes históricos, sistema de alertas y pasarela de pagos con modelo de suscripción **gratuito / premium**.
+
+---
+
+## Modelo de negocio y niveles de acceso
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         NIVELES DE USUARIO                              │
+├──────────────────────────────┬──────────────────────────────────────────┤
+│       GRATUITO (logueado)    │           PREMIUM (suscripción activa)   │
+│                              │                                          │
+│  ✅ Dashboard tiempo real    │  ✅ Dashboard tiempo real                │
+│  ✅ Visualizar sus sensores  │  ✅ Visualizar sus sensores              │
+│  ❌ Reportes históricos      │  ✅ Reportes históricos                 │
+│  ❌ Configurar alertas       │  ✅ Configurar alertas                  │
+│  ❌ Notificaciones SMS/email │  ✅ Notificaciones SMS/email            │
+└──────────────────────────────┴──────────────────────────────────────────┘
+```
+
+### Flujo de acceso
+
+```
+  Usuario visita la app
+          │
+          ▼
+  ¿Está logueado?
+     │         │
+    NO        SÍ
+     │         │
+     ▼         ▼
+  /login    ¿Plan activo?
+              │         │
+           GRATUITO   PREMIUM
+              │         │
+              ▼         ▼
+          DASHBOARD  DASHBOARD
+           (gratis)    REPORTES
+                       ALERTAS
+```
+
+### Control de acceso en el código
+
+El decorator `@requiere_premium` en [SUSCRIPCIONES/decorators.py](CORE/SUSCRIPCIONES/decorators.py) protege automáticamente cualquier vista:
+
+```python
+from SUSCRIPCIONES.decorators import requiere_premium
+
+@requiere_premium          # ← una sola línea bloquea la vista
+def mi_vista(request):
+    ...
+```
+
+Si el usuario no tiene suscripción activa → redirige al dashboard con un mensaje explicativo.
 
 ---
 
@@ -93,6 +146,13 @@ Monitorea/                          ← raíz del repositorio
 │   │   ├── views.py                ← (a desarrollar) login / registro
 │   │   └── urls.py                 ← /accounts/...
 │   │
+│   ├── SUSCRIPCIONES/              ── 💳 pagos y acceso premium ──
+│   │   ├── models.py               ← Plan, Suscripcion, Pago
+│   │   ├── decorators.py           ← @requiere_premium
+│   │   ├── views.py                ← (a desarrollar) checkout, webhook
+│   │   ├── migrations/
+│   │   └── urls.py                 ← /suscripciones/...
+│   │
 │   ├── DASHBOARD/                  ── 📊 tiempo real ──
 │   │   ├── models.py               ← Temperatura, Voltaje
 │   │   ├── views.py                ← API REST + vista HTML dashboard
@@ -105,14 +165,14 @@ Monitorea/                          ← raíz del repositorio
 │   │   └── templates/DASHBOARD/
 │   │       └── dashboard.html      ← UI tiempo real
 │   │
-│   ├── REPORTES/                   ── 📈 históricos ──
+│   ├── REPORTES/                   ── 📈 históricos  🔒 premium ──
 │   │   ├── models.py               ← (a desarrollar)
-│   │   ├── views.py                ← (a desarrollar) filtros por fecha/sensor
+│   │   ├── views.py                ← @requiere_premium · filtros por fecha/sensor
 │   │   └── urls.py                 ← /reportes/...
 │   │
-│   └── ALERTAS/                    ── 🔔 alertas ──
+│   └── ALERTAS/                    ── 🔔 alertas  🔒 premium ──
 │       ├── models.py               ← (a desarrollar) umbrales por sensor
-│       ├── views.py                ← (a desarrollar) CRUD de reglas
+│       ├── views.py                ← @requiere_premium · CRUD de reglas
 │       └── urls.py                 ← /alertas/...
 │
 ├── venv/                           ← entorno virtual Python (no en git)
@@ -129,7 +189,43 @@ Monitorea/                          ← raíz del repositorio
 
 ## Apps del proyecto
 
-### 🔐 ACCOUNTS — Autenticación y perfiles
+### � SUSCRIPCIONES — Planes, pagos y control de acceso
+> **Estado:** modelos creados · integración de gateway pendiente
+
+Núcleo del modelo de negocio. Determina qué puede hacer cada usuario.
+
+```
+  Plan
+  ├── gratuito  (precio: $0)    → solo DASHBOARD
+  └── premium   (precio: $X/mes) → DASHBOARD + REPORTES + ALERTAS
+
+  Suscripcion
+  ├── usuario  ──► (OneToOne) User
+  ├── plan     ──► (FK) Plan
+  ├── estado:  activa | vencida | cancelada | trial
+  ├── fecha_inicio
+  ├── fecha_vencimiento
+  └── esta_activa()  ←── método que usan los decorators
+
+  Pago
+  ├── suscripcion ──► (FK) Suscripcion
+  ├── monto
+  ├── metodo          # 'stripe', 'mercadopago', etc.
+  ├── referencia_gateway
+  └── exitoso
+```
+
+| Archivo | Responsabilidad |
+|---------|----------------|
+| `models.py` | `Plan` · `Suscripcion` · `Pago` |
+| `decorators.py` | `@requiere_premium` — protege cualquier vista en una línea |
+| `views.py` | (a desarrollar) checkout, historial de pagos, webhook del gateway |
+
+**Rutas:** `/suscripciones/` · `/suscripciones/checkout/` · `/suscripciones/webhook/`
+
+---
+
+### �🔐 ACCOUNTS — Autenticación y perfiles
 > **Estado:** estructura creada · en desarrollo
 
 Gestiona el acceso a la plataforma.
@@ -183,8 +279,10 @@ Flujo interno de esta app:
 
 ---
 
-### 📈 REPORTES — Historial de lecturas
-> **Estado:** estructura creada · en desarrollo
+### 📈 REPORTES — Historial de lecturas 🔒
+> **Estado:** estructura creada · protegida con `@requiere_premium` · en desarrollo
+
+Disponible solo para usuarios con suscripción premium activa.
 
 Permite consultar el historial de valores de cualquier sensor aplicando filtros.
 
@@ -199,8 +297,10 @@ Permite consultar el historial de valores de cualquier sensor aplicando filtros.
 
 ---
 
-### 🔔 ALERTAS — Configuración de umbrales
-> **Estado:** estructura creada · en desarrollo
+### 🔔 ALERTAS — Configuración de umbrales 🔒
+> **Estado:** estructura creada · protegida con `@requiere_premium` · en desarrollo
+
+Disponible solo para usuarios con suscripción premium activa.
 
 Permite definir reglas por sensor para disparar notificaciones cuando un valor supera o cae por debajo de un umbral.
 
@@ -220,7 +320,7 @@ Permite definir reglas por sensor para disparar notificaciones cuando un valor s
 | Archivo | Qué hace |
 |---------|----------|
 | `settings.py` | BD, apps instaladas, channels, static, variables de entorno |
-| `urls.py` | Enruta `/` → DASHBOARD · `/accounts/` → ACCOUNTS · `/reportes/` → REPORTES · `/alertas/` → ALERTAS |
+| `urls.py` | `/` → DASHBOARD · `/accounts/` → ACCOUNTS · `/suscripciones/` → SUSCRIPCIONES · `/reportes/` → REPORTES · `/alertas/` → ALERTAS |
 | `asgi.py` | Divide el tráfico: HTTP → Django · WebSocket → Channels |
 
 ---
@@ -377,7 +477,10 @@ El archivo `render.yaml` configura el servicio automáticamente:
 - [x] WebSockets con Django Channels
 - [x] MQTT subscriber (broker público EMQ X)
 - [x] Estructura multi-app escalable
+- [x] **SUSCRIPCIONES** — modelos Plan, Suscripcion, Pago + decorator `@requiere_premium`
+- [x] Protección de REPORTES y ALERTAS por suscripción
 - [ ] **ACCOUNTS** — login, registro, perfiles de usuario
+- [ ] **SUSCRIPCIONES** — integración gateway de pagos (Stripe / MercadoPago)
 - [ ] **DASHBOARD** — vistas por usuario y por ubicación/local
 - [ ] **REPORTES** — filtros históricos, exportación CSV/PDF
 - [ ] **ALERTAS** — umbrales configurables, notificaciones SMS/email
