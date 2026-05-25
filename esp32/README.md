@@ -27,10 +27,12 @@ ESP32 GND    ──── GND  (pin negro DS18B20)
 
 ### Dependencias (Arduino Library Manager)
 
-- **PubSubClient** (Nick O'Leary) — cliente MQTT
-- **OneWire** (Paul Stoffregen) — bus One-Wire para DS18B20
-- **DallasTemperature** (Miles Burton) — lectura del DS18B20
-- **ArduinoJson** (Benoit Blanchon) — serialización JSON
+| Librería | Autor | Descripción |
+|---------|-------|-------------|
+| **PubSubClient** | Nick O'Leary | Cliente MQTT sobre TCP |
+| **OneWire** | Paul Stoffregen | Bus One-Wire para DS18B20 |
+| **DallasTemperature** | Miles Burton | Lectura del sensor DS18B20 |
+| **ArduinoJson** | Benoit Blanchon | Serialización JSON del payload |
 
 ### Configuración
 

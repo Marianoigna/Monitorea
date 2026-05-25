@@ -23,6 +23,11 @@ import paho.mqtt.client as mqtt
 from asgiref.sync import async_to_sync
 
 # ── Configuración ──────────────────────────────────────────────────────────────
+# El servidor Django usa WebSocket SSL (WSS) sobre el puerto 8084 para conectarse
+# al broker MQTT. El sketch ESP32 usa TCP plano sobre el puerto 1883 del mismo
+# broker — ambos transportes son válidos y el broker los gestiona de forma
+# independiente, por lo que los mensajes publicados desde cualquiera de los dos
+# clientes llegan al mismo topic y son recibidos por este suscriptor.
 MQTT_BROKER     = os.environ.get('MQTT_BROKER',     'broker.emqx.io')
 MQTT_PORT       = int(os.environ.get('MQTT_PORT',   '8084'))
 MQTT_TOPIC_TEMP = os.environ.get('MQTT_TOPIC_TEMP', 'temperatura_prueba')

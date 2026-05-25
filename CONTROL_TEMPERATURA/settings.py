@@ -10,12 +10,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-ct-change-me-in-production-k3y!')
+_default_secret = 'django-insecure-ct-change-me-in-production-k3y!'
+SECRET_KEY = os.environ.get('SECRET_KEY', _default_secret)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+if not DEBUG and SECRET_KEY == _default_secret:
+    raise RuntimeError(
+        'SECRET_KEY must be set to a secure value when DEBUG=False. '
+        'Set the SECRET_KEY environment variable.'
+    )
+
+_allowed = os.environ.get('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = _allowed.split(',') if _allowed else (['*'] if DEBUG else [])
 
 
 # Application definition
@@ -66,7 +74,15 @@ WSGI_APPLICATION = 'CONTROL_TEMPERATURA.wsgi.application'
 # ASGI + Channels
 ASGI_APPLICATION = 'CONTROL_TEMPERATURA.asgi.application'
 
-# Channel Layers — InMemory para desarrollo (usar Redis en producción)
+# Channel Layers — InMemory para desarrollo.
+# En producción usar Redis: pip install channels-redis
+# y reemplazar con:
+#   CHANNEL_LAYERS = {
+#       'default': {
+#           'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#           'CONFIG': {'hosts': [os.environ.get('REDIS_URL', 'redis://localhost:6379')]},
+#       }
+#   }
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
