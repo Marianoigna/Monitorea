@@ -43,9 +43,10 @@ INSTALLED_APPS = [
     'channels',                            # WebSockets
     # Apps del proyecto
     'ACCOUNTS',                            # Autenticación y perfiles
+    'SUSCRIPCIONES',                       # Planes, pagos y control de acceso
     'DASHBOARD',                           # Dashboard tiempo real
-    'REPORTES',                            # Reportes históricos
-    'ALERTAS',                             # Configuración de alertas
+    'REPORTES',                            # Reportes históricos (premium)
+    'ALERTAS',                             # Configuración de alertas (premium)
 ]
 
 MIDDLEWARE = [

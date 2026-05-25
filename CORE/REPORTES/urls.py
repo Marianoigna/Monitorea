@@ -1,7 +1,8 @@
 from django.urls import path
+from . import views
 
 app_name = 'reportes'
 
 urlpatterns = [
-    # reportes históricos — a desarrollar
+    path('', views.index, name='index'),
 ]
