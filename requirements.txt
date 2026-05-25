@@ -1,0 +1,15 @@
+django
+djangorestframework
+channels
+daphne
+paho-mqtt
+requests
+whitenoise
+asgiref
+twisted
+autobahn
+txaio
+cryptography
+pyopenssl
+service-identity
+attrs

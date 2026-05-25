@@ -1,0 +1,18 @@
+services:
+
+  web:
+    build: .
+    command: >
+      sh -c "export MQTT_AUTOSTART=1 &&
+             python manage.py migrate --noinput &&
+             daphne -b 0.0.0.0 -p 8000 CONTROL_TEMPERATURA.asgi:application"
+    ports:
+      - "8000:8000"
+    volumes:
+      - sqlite_data:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=CONTROL_TEMPERATURA.settings
+      - MQTT_AUTOSTART=1
+
+volumes:
+  sqlite_data:
