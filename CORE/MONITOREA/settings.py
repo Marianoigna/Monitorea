@@ -41,7 +41,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',                      # Django REST Framework
     'channels',                            # WebSockets
-    'DASHBOARD_SENSORES',
+    # Apps del proyecto
+    'ACCOUNTS',                            # Autenticación y perfiles
+    'DASHBOARD',                           # Dashboard tiempo real
+    'REPORTES',                            # Reportes históricos
+    'ALERTAS',                             # Configuración de alertas
 ]
 
 MIDDLEWARE = [

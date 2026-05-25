@@ -78,7 +78,7 @@ def dashboard(request):
     ultimos_temp = Temperatura.objects.all()[:5]
     ultima_temp = ultimos_temp[0] if ultimos_temp else None
     ultimo_volt = Voltaje.objects.first()
-    return render(request, 'DASHBOARD_SENSORES/dashboard.html', {
+    return render(request, 'DASHBOARD/dashboard.html', {
         'ultima': ultima_temp,
         'ultimos': list(reversed(list(ultimos_temp))),
         'ultimo_volt': ultimo_volt,

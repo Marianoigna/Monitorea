@@ -4,7 +4,7 @@ from django.apps import AppConfig
 
 
 class DashboardSensoresConfig(AppConfig):
-    name = 'DASHBOARD_SENSORES'
+    name = 'DASHBOARD'
 
     def ready(self):
         # Arrancar el suscriptor MQTT en un hilo de fondo solo cuando

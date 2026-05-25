@@ -10,7 +10,7 @@ class Temperatura(models.Model):
         ordering = ['-timestamp']                        # Más reciente primero
         verbose_name = 'Temperatura'
         verbose_name_plural = 'Temperaturas'
-        db_table = 'DASHBOARD_SENSORES_temperatura'
+        db_table = 'DASHBOARD_temperatura'
 
     def __str__(self):
         return f'{self.sensor_id}: {self.valor}°C @ {self.timestamp}'
