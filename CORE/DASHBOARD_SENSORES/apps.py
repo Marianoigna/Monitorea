@@ -3,8 +3,8 @@ import os
 from django.apps import AppConfig
 
 
-class DashboardTempVoltConfig(AppConfig):
-    name = 'DASHBOARD_TEMP_VOLT'
+class DashboardSensoresConfig(AppConfig):
+    name = 'DASHBOARD_SENSORES'
 
     def ready(self):
         # Arrancar el suscriptor MQTT en un hilo de fondo solo cuando

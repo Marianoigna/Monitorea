@@ -43,7 +43,7 @@ def _on_connect(client, userdata, flags, reason_code, properties):
 def _on_message(client, userdata, msg):
     # Imports diferidos para evitar ciclos en el arranque de Django
     from channels.layers import get_channel_layer
-    from DASHBOARD_TEMP_VOLT.models import Temperatura, Voltaje
+    from DASHBOARD_SENSORES.models import Temperatura, Voltaje
 
     topic   = msg.topic
     payload = msg.payload.decode('utf-8').strip()

@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',                      # Django REST Framework
     'channels',                            # WebSockets
-    'DASHBOARD_TEMP_VOLT',
+    'DASHBOARD_SENSORES',
 ]
 
 MIDDLEWARE = [

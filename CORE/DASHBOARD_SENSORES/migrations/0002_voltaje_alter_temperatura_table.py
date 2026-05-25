@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('DASHBOARD_TEMP_VOLT', '0001_initial'),
+        ('DASHBOARD_SENSORES', '0001_initial'),
     ]
 
     operations = [
@@ -26,6 +26,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterModelTable(
             name='temperatura',
-            table='DASHBOARD_TEMP_VOLT_temperatura',
+            table='DASHBOARD_SENSORES_temperatura',
         ),
     ]
