@@ -47,4 +47,4 @@ class TemperaturaAPIView(APIView):
 def dashboard(request):
     """Página principal con el valor de temperatura en tiempo real."""
     ultima = Temperatura.objects.first()
-    return render(request, 'SENSOR_TEMPERATURA/dashboard.html', {'ultima': ultima})
+    return render(request, 'SENSORES/dashboard.html', {'ultima': ultima})

@@ -1,20 +1,20 @@
 ﻿"""
-ASGI config for CONTROL_TEMPERATURA project.
+ASGI config for MONITOREA project.
 """
 
 import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-import SENSOR_TEMPERATURA.routing
+import SENSORES.routing
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'CONTROL_TEMPERATURA.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MONITOREA.settings')
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
     'websocket': AuthMiddlewareStack(
         URLRouter(
-            SENSOR_TEMPERATURA.routing.websocket_urlpatterns
+            SENSORES.routing.websocket_urlpatterns
         )
     ),
 })

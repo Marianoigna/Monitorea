@@ -1,5 +1,5 @@
 ﻿"""
-ASGI config for CONTROL_TEMPERATURA project.
+ASGI config for MONITOREA project.
 """
 
 import os
@@ -8,7 +8,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 import DASHBOARD_TEMP_VOLT.routing
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'CONTROL_TEMPERATURA.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MONITOREA.settings')
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),

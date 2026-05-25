@@ -8,7 +8,7 @@
     startCommand: bash start_web.sh
     envVars:
       - key: DJANGO_SETTINGS_MODULE
-        value: CONTROL_TEMPERATURA.settings
+        value: MONITOREA.settings
       - key: MQTT_AUTOSTART
         value: "1"
       - key: SECRET_KEY

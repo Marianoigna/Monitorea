@@ -4,15 +4,15 @@
     build: .
     command: >
       sh -c "export MQTT_AUTOSTART=1 &&
-             cd CONTROL_HELADERAS &&
+             cd CORE &&
              python manage.py migrate --noinput &&
-             daphne -b 0.0.0.0 -p 8000 CONTROL_TEMPERATURA.asgi:application"
+             daphne -b 0.0.0.0 -p 8000 MONITOREA.asgi:application"
     ports:
       - "8000:8000"
     volumes:
-      - sqlite_data:/app/CONTROL_HELADERAS
+      - sqlite_data:/app/CORE
     environment:
-      - DJANGO_SETTINGS_MODULE=CONTROL_TEMPERATURA.settings
+      - DJANGO_SETTINGS_MODULE=MONITOREA.settings
       - MQTT_AUTOSTART=1
 
 volumes:

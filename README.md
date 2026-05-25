@@ -1,4 +1,4 @@
-﻿# CONTROL_TEMPERATURA — SENSOR_TEMPERATURA
+﻿# MONITOREA — SENSORES
 
 Monitor de temperatura en tiempo real usando **Django**, **WebSockets** y **MQTT**.  
 Los datos llegan desde un sensor (o simulador MQTTX) a través de un broker MQTT público, se almacenan en SQLite3 y se reflejan instantáneamente en el dashboard sin recargar la página.
@@ -44,14 +44,14 @@ Los datos llegan desde un sensor (o simulador MQTTX) a través de un broker MQTT
 ## Estructura del proyecto
 
 ```
-CONTROL_TEMPERATURA/
+MONITOREA/
 ├── levantar_servidor.bat        # Script para levantar todo con un doble clic
 ├── activar_entorno.bat          # Activa el entorno virtual
 ├── .gitignore
-└── CONTROL_TEMPERATURA/
+└── MONITOREA/
     ├── manage.py
     ├── mqtt_subscriber.py       # Puente MQTT → API REST
-    ├── SENSOR_TEMPERATURA/                 # App principal
+    ├── SENSORES/                 # App principal
     │   ├── models.py            # Modelo Temperatura
     │   ├── views.py             # API REST + vista dashboard
     │   ├── consumers.py         # WebSocket consumer
@@ -59,9 +59,9 @@ CONTROL_TEMPERATURA/
     │   ├── urls.py
     │   ├── routing.py
     │   └── templates/
-    │       └── SENSOR_TEMPERATURA/
+    │       └── SENSORES/
     │           └── dashboard.html
-    └── CONTROL_TEMPERATURA/
+    └── MONITOREA/
         ├── settings.py
         ├── asgi.py
         └── urls.py
@@ -74,8 +74,8 @@ CONTROL_TEMPERATURA/
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/Marianoigna/Control_Temperatura.git
-cd Control_Temperatura
+git clone https://github.com/Marianoigna/MONITOREA.git
+cd MONITOREA
 ```
 
 ### 2. Crear y activar el entorno virtual
@@ -96,7 +96,7 @@ pip install django djangorestframework channels daphne paho-mqtt requests
 ### 4. Aplicar migraciones
 
 ```bash
-cd Control_Temperatura
+cd MONITOREA
 python manage.py migrate
 ```
 
@@ -115,13 +115,13 @@ Abrir **dos terminales** con el entorno virtual activado:
 
 **Terminal 1 — Django:**
 ```bash
-cd Control_Temperatura
+cd MONITOREA
 python manage.py runserver
 ```
 
 **Terminal 2 — MQTT Subscriber:**
 ```bash
-cd Control_Temperatura
+cd MONITOREA
 python mqtt_subscriber.py
 ```
 

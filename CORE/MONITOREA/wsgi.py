@@ -1,5 +1,5 @@
 ﻿"""
-WSGI config for CONTROL_TEMPERATURA project.
+WSGI config for MONITOREA project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'CONTROL_TEMPERATURA.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MONITOREA.settings')
 
 application = get_wsgi_application()

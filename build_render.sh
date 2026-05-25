@@ -3,7 +3,7 @@ set -e
 
 pip install -r requirements.txt
 
-export DJANGO_SETTINGS_MODULE=CONTROL_TEMPERATURA.settings
+export DJANGO_SETTINGS_MODULE=MONITOREA.settings
 
-cd CONTROL_HELADERAS
+cd CORE
 python manage.py collectstatic --noinput
