@@ -19,3 +19,4 @@ msgpack
 cbor2
 ujson
 py-ubjson
+mercadopago

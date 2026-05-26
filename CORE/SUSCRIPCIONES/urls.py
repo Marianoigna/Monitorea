@@ -1,7 +1,9 @@
 from django.urls import path
+from . import views
 
 app_name = 'suscripciones'
 
 urlpatterns = [
-    # planes, checkout, webhooks — a desarrollar
+    path('suscribirse/', views.crear_suscripcion, name='suscribirse'),
+    path('webhook/',     views.webhook,           name='webhook'),
 ]

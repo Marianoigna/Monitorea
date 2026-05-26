@@ -27,8 +27,7 @@ def requiere_premium(view_func):
             return redirect('accounts:login')
 
         try:
-            suscripcion = request.user.suscripcion
-            if suscripcion.esta_activa():
+            if request.user.tiene_premium_activo():
                 return view_func(request, *args, **kwargs)
         except Exception:
             pass

@@ -139,7 +139,20 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Django REST Framework
+# ── Usuario personalizado ──────────────────────────────────────
+AUTH_USER_MODEL = 'ACCOUNTS.CustomUser'
+
+# ── Redirecciones de autenticación ────────────────────────────
+LOGIN_URL          = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# ── MercadoPago ───────────────────────────────────────────────
+MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
+MERCADOPAGO_PLAN_ID      = os.environ.get('MERCADOPAGO_PLAN_ID', '')
+MERCADOPAGO_BACK_URL     = os.environ.get('MERCADOPAGO_BACK_URL', 'http://127.0.0.1:8000/')
+
+# ── Django REST Framework ─────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',

@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -73,6 +74,7 @@ class VoltajeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@login_required
 def dashboard(request):
     """Página principal con temperatura y voltaje en tiempo real."""
     ultimos_temp = Temperatura.objects.all()[:5]

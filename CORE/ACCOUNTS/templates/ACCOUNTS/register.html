@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MONITOREA — Crear cuenta</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 0;
+    }
+
+    .auth-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 1.8rem;
+    }
+
+    .auth-logo h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #58a6ff;
+      letter-spacing: 2px;
+    }
+
+    .auth-logo p {
+      font-size: 0.85rem;
+      color: #8b949e;
+      margin-top: 0.3rem;
+    }
+
+    .plan-badge {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .plan {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 0.8rem;
+      text-align: center;
+      font-size: 0.8rem;
+    }
+
+    .plan.free  { border-color: #30363d; }
+    .plan.prem  { border-color: #58a6ff; }
+
+    .plan .plan-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.3rem; }
+    .plan.free  .plan-name { color: #8b949e; }
+    .plan.prem  .plan-name { color: #58a6ff; }
+
+    .plan ul { list-style: none; color: #8b949e; line-height: 1.7; }
+    .plan .check { color: #2ea043; }
+    .plan .cross { color: #f85149; }
+
+    .form-group { margin-bottom: 1.1rem; }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #8b949e;
+      margin-bottom: 0.4rem;
+    }
+
+    .form-input {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #e6edf3;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+
+    .btn-primary {
+      width: 100%;
+      background: #238636;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover { background: #2ea043; }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 1.4rem;
+      font-size: 0.88rem;
+      color: #8b949e;
+    }
+
+    .auth-footer a { color: #58a6ff; text-decoration: none; }
+    .auth-footer a:hover { text-decoration: underline; }
+
+    .field-errors { margin-top: 0.3rem; }
+    .field-errors li {
+      list-style: none;
+      font-size: 0.82rem;
+      color: #f85149;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>MONITOREA</h1>
+      <p>Creá tu cuenta — es gratis</p>
+    </div>
+
+    <div class="plan-badge">
+      <div class="plan free">
+        <div class="plan-name">Gratuito</div>
+        <ul>
+          <li><span class="check">✓</span> Dashboard tiempo real</li>
+          <li><span class="cross">✗</span> Reportes históricos</li>
+          <li><span class="cross">✗</span> Alertas SMS/email</li>
+        </ul>
+      </div>
+      <div class="plan prem">
+        <div class="plan-name">Premium</div>
+        <ul>
+          <li><span class="check">✓</span> Dashboard tiempo real</li>
+          <li><span class="check">✓</span> Reportes históricos</li>
+          <li><span class="check">✓</span> Alertas SMS/email</li>
+        </ul>
+      </div>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% for field in form %}
+      <div class="form-group">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.errors %}
+        <ul class="field-errors">
+          {% for e in field.errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <button type="submit" class="btn-primary">Crear cuenta</button>
+    </form>
+
+    <div class="auth-footer">
+      ¿Ya tenés cuenta? <a href="{% url 'accounts:login' %}">Iniciá sesión</a>
+    </div>
+  </div>
+</body>
+</html>
