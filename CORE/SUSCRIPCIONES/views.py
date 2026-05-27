@@ -5,13 +5,19 @@ import mercadopago
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from datetime import timedelta
 
 logger = logging.getLogger(__name__)
+
+
+@login_required
+def planes(request):
+    """Página de planes — muestra las opciones de suscripción."""
+    return render(request, 'SUSCRIPCIONES/planes.html')
 
 
 @login_required
@@ -131,7 +137,6 @@ def checkout_pro_prueba(request):
             "failure": settings.MERCADOPAGO_BACK_URL + "suscripciones/pago-fallido/",
             "pending": settings.MERCADOPAGO_BACK_URL + "suscripciones/pago-pendiente/",
         },
-        "auto_return": "approved",
         "payer": {
             "email": request.user.email,
         },

@@ -37,6 +37,6 @@ def requiere_premium(view_func):
             'Esta sección requiere una suscripción premium activa. '
             'Activá tu plan para acceder a reportes y alertas.',
         )
-        return redirect('dashboard:dashboard')
+        return redirect('suscripciones:planes')
 
     return wrapper

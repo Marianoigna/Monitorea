@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -72,6 +72,13 @@ class VoltajeAPIView(APIView):
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+def landing(request):
+    """Página de bienvenida pública."""
+    if request.user.is_authenticated:
+        return redirect('dashboard:dashboard')
+    return render(request, 'DASHBOARD/landing.html')
 
 
 @login_required

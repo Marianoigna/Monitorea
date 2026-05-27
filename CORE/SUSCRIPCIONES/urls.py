@@ -4,6 +4,7 @@ from . import views
 app_name = 'suscripciones'
 
 urlpatterns = [
+    path('planes/', views.planes, name='planes'),
     # Flujo de suscripción recurrente (preapproval — se activa cuando el plan esté creado en MP)
     path('suscribirse/',    views.crear_suscripcion, name='suscribirse'),
     path('webhook/',        views.webhook,           name='webhook'),

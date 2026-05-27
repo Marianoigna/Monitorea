@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitorea — Bienvenido</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .logo {
+      font-size: 0.8rem;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: #484f58;
+      margin-bottom: 1.5rem;
+    }
+
+    .logo span {
+      color: #58a6ff;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      line-height: 1.2;
+      max-width: 680px;
+      margin-bottom: 1.2rem;
+    }
+
+    h1 span {
+      color: #58a6ff;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: #8b949e;
+      max-width: 520px;
+      line-height: 1.6;
+      margin-bottom: 2.8rem;
+    }
+
+    .btn-login {
+      display: inline-block;
+      background: #58a6ff;
+      color: #0d1117;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      text-decoration: none;
+      padding: 0.85rem 2.5rem;
+      border-radius: 8px;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .btn-login:hover {
+      background: #79c0ff;
+      transform: translateY(-2px);
+    }
+
+    .features {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 4rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .feature-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 1.5rem 1.8rem;
+      width: 200px;
+      text-align: center;
+    }
+
+    .feature-card .icon {
+      font-size: 2rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .feature-card h3 {
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #8b949e;
+      margin-bottom: 0.4rem;
+    }
+
+    .feature-card p {
+      font-size: 0.8rem;
+      color: #484f58;
+      line-height: 1.4;
+    }
+
+    .footer {
+      margin-top: 4rem;
+      font-size: 0.75rem;
+      color: #30363d;
+    }
+  </style>
+</head>
+<body>
+
+  <p class="logo"><span>Monitorea</span> — Control en tiempo real</p>
+
+  <h1>Bienvenido a <span>Monitorea</span></h1>
+
+  <p class="subtitle">
+    El lugar donde podés monitorear en tiempo real y conocer el estado
+    de todos tus activos.
+  </p>
+
+  <a href="{% url 'accounts:login' %}" class="btn-login">Iniciar sesión</a>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="icon">📡</div>
+      <h3>Dashboard</h3>
+      <p>Visualización en tiempo real de todas tus variables.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔔</div>
+      <h3>Alertas</h3>
+      <p>Aviso al instante de cualquier anomalía en tus activos.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">⚡</div>
+      <h3>Tiempo real</h3>
+      <p>Lecturas vía MQTT actualizadas al instante.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📊</div>
+      <h3>Reportes</h3>
+      <p>Historial y análisis de todos tus sensores.</p>
+    </div>
+  </div>
+
+  <p class="footer">© 2026 Monitorea</p>
+
+</body>
+</html>

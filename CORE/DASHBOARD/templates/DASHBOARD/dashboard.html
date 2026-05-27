@@ -139,9 +139,164 @@
             gap: 1.5rem;
         }
 
+        /* ── Hamburger menu ── */
+        .hamburger-btn {
+            position: fixed;
+            top: 1.2rem;
+            left: 1.2rem;
+            z-index: 1000;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .hamburger-btn:hover { background: #21262d; }
+        .hamburger-btn span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: #8b949e;
+            border-radius: 2px;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+        .hamburger-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .hamburger-btn.open span:nth-child(2) { opacity: 0; }
+        .hamburger-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 900;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .sidebar-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 260px;
+            background: #161b22;
+            border-right: 1px solid #30363d;
+            z-index: 950;
+            padding: 5rem 1.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        .sidebar.open { transform: translateX(0); }
+
+        .sidebar-logo {
+            position: absolute;
+            top: 1.2rem;
+            left: 1.2rem;
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #484f58;
+        }
+        .sidebar-logo span { color: #58a6ff; }
+
+        .sidebar-label {
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #484f58;
+            padding: 0.4rem 0.5rem 0.2rem;
+            margin-top: 0.5rem;
+        }
+
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #8b949e;
+            font-size: 0.95rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .sidebar a:hover { background: #21262d; color: #e6edf3; }
+        .sidebar a .nav-icon { font-size: 1.1rem; width: 1.4rem; text-align: center; }
+
+        .sidebar-divider {
+            height: 1px;
+            background: #30363d;
+            margin: 0.8rem 0;
+        }
+
+        .sidebar a.danger { color: #f85149; }
+        .sidebar a.danger:hover { background: rgba(248,81,73,0.1); color: #f85149; }
+
     </style>
 </head>
 <body>
+
+<!-- Hamburger button -->
+<button class="hamburger-btn" id="hamburger-btn" aria-label="Menú">
+    <span></span><span></span><span></span>
+</button>
+
+<!-- Sidebar overlay -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><span>Monitorea</span></div>
+
+    <span class="sidebar-label">Principal</span>
+    <a href="{% url 'dashboard:dashboard' %}">
+        <span class="nav-icon">📡</span> Dashboard
+    </a>
+
+    <span class="sidebar-label">Aplicaciones</span>
+    <a href="{% url 'reportes:index' %}">
+        <span class="nav-icon">📊</span> Reportes
+    </a>
+    <a href="{% url 'alertas:index' %}">
+        <span class="nav-icon">🔔</span> Alertas
+    </a>
+
+    <div class="sidebar-divider"></div>
+
+    <a href="{% url 'accounts:logout' %}" class="danger">
+        <span class="nav-icon">🚪</span> Cerrar sesión
+    </a>
+</nav>
+
+<script>
+    const btn = document.getElementById('hamburger-btn');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    function toggleMenu() {
+        btn.classList.toggle('open');
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('visible');
+    }
+
+    btn.addEventListener('click', toggleMenu);
+    overlay.addEventListener('click', toggleMenu);
+</script>
+
 
 <h1>CONTROL TEMPERATURA Y VOLTAJE</h1>
 

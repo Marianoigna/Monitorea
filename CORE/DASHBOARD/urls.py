@@ -4,7 +4,8 @@ from . import views
 app_name = 'dashboard'
 
 urlpatterns = [
-    path('', views.dashboard, name='dashboard'),
+    path('', views.landing, name='landing'),
+    path('dashboard/', views.dashboard, name='dashboard'),
     path('api/temperatura/', views.TemperaturaAPIView.as_view(), name='api_temperatura'),
     path('api/voltaje/', views.VoltajeAPIView.as_view(), name='api_voltaje'),
 ]
