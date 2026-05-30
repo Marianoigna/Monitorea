@@ -1,242 +1,94 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monitorea — Planes</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+{% extends 'base.html' %}
 
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-      text-align: center;
-    }
+{% block title %}Monitorea — Planes{% endblock %}
 
-    .back-link {
-      position: fixed;
-      top: 1.2rem;
-      left: 1.5rem;
-      font-size: 0.85rem;
-      color: #8b949e;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      transition: color 0.2s;
-    }
-    .back-link:hover { color: #e6edf3; }
+{% block content %}
+<div class="container py-5">
 
-    .badge {
-      display: inline-block;
-      background: rgba(248,81,73,0.15);
-      color: #f85149;
-      font-size: 0.75rem;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      padding: 0.3rem 0.9rem;
-      border-radius: 20px;
-      margin-bottom: 1.2rem;
-    }
+  <div class="text-center mb-5">
+    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-outline-secondary btn-sm mb-4">
+      <i class="bi bi-arrow-left me-1"></i>Volver al dashboard
+    </a>
 
-    h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.8rem;
-    }
+    <span class="badge bg-danger-subtle text-danger fw-semibold px-3 py-2 rounded-pill mb-3 d-block mx-auto" style="width:fit-content">
+      <i class="bi bi-lock me-1"></i>Acceso restringido
+    </span>
 
-    h1 span { color: #58a6ff; }
+    <h1 class="display-5 fw-bold mb-2">
+      Eleg&iacute; tu <span class="text-primary">plan</span>
+    </h1>
+    <p class="lead text-body-secondary mx-auto" style="max-width:480px">
+      Para acceder a Reportes y Alertas necesit&aacute;s una suscripci&oacute;n Premium activa.
+    </p>
+  </div>
 
-    .subtitle {
-      font-size: 1rem;
-      color: #8b949e;
-      margin-bottom: 3rem;
-      max-width: 480px;
-    }
+  <div class="row g-4 justify-content-center">
 
-    .plans-grid {
-      display: flex;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .plan-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 16px;
-      padding: 2rem 1.8rem;
-      width: 260px;
-      text-align: left;
-      position: relative;
-    }
-
-    .plan-card.premium {
-      border-color: #58a6ff;
-      box-shadow: 0 0 0 1px #58a6ff22, 0 8px 32px rgba(88,166,255,0.1);
-    }
-
-    .plan-badge {
-      position: absolute;
-      top: -12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #58a6ff;
-      color: #0d1117;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      padding: 0.25rem 0.9rem;
-      border-radius: 20px;
-      white-space: nowrap;
-    }
-
-    .plan-name {
-      font-size: 1.1rem;
-      font-weight: 700;
-      margin-bottom: 0.3rem;
-      color: #e6edf3;
-    }
-
-    .plan-price {
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: #58a6ff;
-      margin: 0.8rem 0 0.2rem;
-    }
-
-    .plan-price span {
-      font-size: 1rem;
-      color: #8b949e;
-      font-weight: 400;
-    }
-
-    .plan-desc {
-      font-size: 0.82rem;
-      color: #8b949e;
-      margin-bottom: 1.5rem;
-      line-height: 1.5;
-    }
-
-    .plan-features {
-      list-style: none;
-      margin-bottom: 1.8rem;
-    }
-
-    .plan-features li {
-      font-size: 0.85rem;
-      color: #8b949e;
-      padding: 0.35rem 0;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      border-bottom: 1px solid #21262d;
-    }
-
-    .plan-features li:last-child { border-bottom: none; }
-
-    .plan-features li .check { color: #3fb950; font-size: 0.9rem; }
-    .plan-features li .cross { color: #484f58; font-size: 0.9rem; }
-
-    .btn-plan {
-      display: block;
-      width: 100%;
-      text-align: center;
-      padding: 0.75rem;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 0.95rem;
-      text-decoration: none;
-      transition: background 0.2s, transform 0.15s;
-      cursor: pointer;
-      border: none;
-    }
-
-    .btn-plan.free {
-      background: #21262d;
-      color: #8b949e;
-      pointer-events: none;
-    }
-
-    .btn-plan.premium-btn {
-      background: #58a6ff;
-      color: #0d1117;
-    }
-
-    .btn-plan.premium-btn:hover {
-      background: #79c0ff;
-      transform: translateY(-2px);
-    }
-
-    {% if messages %}
-    .msg-warning {
-      background: rgba(210,153,34,0.12);
-      border: 1px solid #d29922;
-      border-radius: 8px;
-      padding: 0.75rem 1.2rem;
-      font-size: 0.85rem;
-      color: #d29922;
-      margin-bottom: 2rem;
-      max-width: 520px;
-    }
-    {% endif %}
-  </style>
-</head>
-<body>
-
-  <a href="{% url 'dashboard:dashboard' %}" class="back-link">← Volver al dashboard</a>
-
-  {% if messages %}
-    {% for msg in messages %}
-      <div class="msg-warning">{{ msg }}</div>
-    {% endfor %}
-  {% endif %}
-
-  <span class="badge">🔒 Acceso restringido</span>
-
-  <h1>Elegí tu <span>plan</span></h1>
-  <p class="subtitle">Para acceder a Reportes y Alertas necesitás una suscripción Premium activa.</p>
-
-  <div class="plans-grid">
-
-    <!-- Plan Gratuito -->
-    <div class="plan-card">
-      <div class="plan-name">Gratuito</div>
-      <div class="plan-price">$0 <span>/ mes</span></div>
-      <p class="plan-desc">Acceso básico al monitoreo en tiempo real.</p>
-      <ul class="plan-features">
-        <li><span class="check">✓</span> Dashboard en tiempo real</li>
-        <li><span class="cross">✗</span> Reportes históricos</li>
-        <li><span class="cross">✗</span> Alertas configurables</li>
-      </ul>
-      <span class="btn-plan free">Plan actual</span>
+    {# ── Plan Gratuito ── #}
+    <div class="col-12 col-sm-8 col-md-5 col-lg-4">
+      <div class="card border h-100">
+        <div class="card-body d-flex flex-column p-4">
+          <h5 class="card-title fw-bold mb-1">Gratuito</h5>
+          <div class="mb-1">
+            <span class="display-5 fw-bold">$0</span>
+            <span class="text-body-secondary">/ mes</span>
+          </div>
+          <p class="text-body-secondary small mb-4">Acceso b&aacute;sico al monitoreo en tiempo real.</p>
+          <ul class="list-unstyled mb-4 flex-grow-1">
+            <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Dashboard en tiempo real
+            </li>
+            <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+              <i class="bi bi-x-circle-fill text-secondary"></i>
+              <span class="text-body-secondary">Reportes hist&oacute;ricos</span>
+            </li>
+            <li class="d-flex align-items-center gap-2 py-2">
+              <i class="bi bi-x-circle-fill text-secondary"></i>
+              <span class="text-body-secondary">Alertas configurables</span>
+            </li>
+          </ul>
+          <button class="btn btn-outline-secondary w-100 disabled" aria-disabled="true">
+            Plan actual
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Plan Premium -->
-    <div class="plan-card premium">
-      <div class="plan-badge">Recomendado</div>
-      <div class="plan-name">Premium</div>
-      <div class="plan-price">$4.999 <span>/ mes</span></div>
-      <p class="plan-desc">Acceso completo a todas las funcionalidades.</p>
-      <ul class="plan-features">
-        <li><span class="check">✓</span> Dashboard en tiempo real</li>
-        <li><span class="check">✓</span> Reportes históricos</li>
-        <li><span class="check">✓</span> Alertas configurables</li>
-      </ul>
-      <a href="{% url 'suscripciones:checkout_prueba' %}" class="btn-plan premium-btn">
-        Contratar ahora →
-      </a>
+    {# ── Plan Premium ── #}
+    <div class="col-12 col-sm-8 col-md-5 col-lg-4">
+      <div class="card border border-primary h-100">
+        <div class="card-header bg-primary text-white text-center fw-bold py-2">
+          <i class="bi bi-star-fill me-1"></i>Recomendado
+        </div>
+        <div class="card-body d-flex flex-column p-4">
+          <h5 class="card-title fw-bold mb-1 text-primary">Premium</h5>
+          <div class="mb-1">
+            <span class="display-5 fw-bold">$4.999</span>
+            <span class="text-body-secondary">/ mes</span>
+          </div>
+          <p class="text-body-secondary small mb-4">Acceso completo a todas las funcionalidades.</p>
+          <ul class="list-unstyled mb-4 flex-grow-1">
+            <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Dashboard en tiempo real
+            </li>
+            <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Reportes hist&oacute;ricos
+            </li>
+            <li class="d-flex align-items-center gap-2 py-2">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Alertas configurables
+            </li>
+          </ul>
+          <a href="{% url 'suscripciones:checkout_prueba' %}" class="btn btn-primary w-100 fw-semibold">
+            Contratar ahora <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+        </div>
+      </div>
     </div>
 
   </div>
-
-</body>
-</html>
+</div>
+{% endblock %}

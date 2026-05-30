@@ -3,9 +3,19 @@ from django.db import models
 from django.utils import timezone
 
 
+THEME_CHOICES = [
+    ('auto',  'Auto (sistema)'),
+    ('light', 'Claro'),
+    ('dark',  'Oscuro'),
+]
+
+
 class CustomUser(AbstractUser):
     # Email único — necesario para identificar al usuario en el webhook de MercadoPago
     email = models.EmailField(unique=True)
+
+    # Preferencia de tema de la interfaz
+    theme = models.CharField(max_length=10, default='auto', choices=THEME_CHOICES)
 
     # Campos de suscripción (actualizados automáticamente por el webhook de MP)
     is_premium    = models.BooleanField(default=False)

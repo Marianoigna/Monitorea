@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Monitorea{% endblock %}</title>
+
+  {# ── Inicializa el tema ANTES de que Bootstrap renderice para evitar flash ── #}
+  <script>
+    (function () {
+      var serverTheme = '{{ user_theme|default:"auto" }}';
+      var theme;
+      if (serverTheme === 'auto') {
+        theme = localStorage.getItem('monitorea-theme') ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      } else {
+        theme = serverTheme;
+      }
+      document.documentElement.setAttribute('data-bs-theme', theme);
+    })();
+  </script>
+
+  {# ── Bootstrap 5.3.3 CDN ── #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  {# ── Bootstrap Icons 1.11.3 CDN ── #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  {% block navbar %}
+  {# ── Navbar principal ── #}
+  <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+    <div class="container-fluid">
+
+      {# Botón sidebar (solo usuarios autenticados) #}
+      {% if request.user.is_authenticated %}
+      <button class="btn btn-outline-secondary btn-sm me-2 d-lg-none"
+              type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#sidebar"
+              aria-controls="sidebar"
+              aria-label="Abrir menú">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+      {# Botón sidebar desktop — siempre visible en lg+ #}
+      <button class="btn btn-outline-secondary btn-sm me-2 d-none d-lg-inline-flex"
+              type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#sidebar"
+              aria-controls="sidebar"
+              aria-label="Abrir menú">
+        <i class="bi bi-layout-sidebar fs-5"></i>
+      </button>
+      {% endif %}
+
+      {# Logo #}
+      <a class="navbar-brand fw-bold fs-5" href="{% url 'dashboard:landing' %}">
+        <span class="text-primary">Monitorea</span>
+        <span class="text-body-secondary fw-normal d-none d-sm-inline fs-6 ms-1">— tiempo real</span>
+      </a>
+
+      {# Acciones derecha #}
+      <div class="ms-auto d-flex align-items-center gap-2">
+
+        {# Toggle de tema #}
+        <button id="theme-toggle"
+                class="btn btn-outline-secondary btn-sm rounded-circle"
+                title="Cambiar tema"
+                aria-label="Cambiar tema claro/oscuro">
+          <i class="bi bi-sun-fill" id="theme-icon"></i>
+        </button>
+
+        {% if request.user.is_authenticated %}
+          <span class="text-body-secondary small d-none d-md-inline">
+            <i class="bi bi-person-circle me-1"></i>{{ request.user.username }}
+          </span>
+          <a href="{% url 'accounts:logout' %}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-box-arrow-right me-1"></i>Salir
+          </a>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="btn btn-primary btn-sm">
+            Ingresar
+          </a>
+        {% endif %}
+
+      </div>
+    </div>
+  </nav>
+  {% endblock navbar %}
+
+  {# ── Offcanvas sidebar (solo autenticados) ── #}
+  {% if request.user.is_authenticated %}
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebar" aria-labelledby="sidebarLabel">
+    <div class="offcanvas-header border-bottom">
+      <h5 class="offcanvas-title fw-bold" id="sidebarLabel">
+        <span class="text-primary">Monitorea</span>
+      </h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column p-3">
+
+      <p class="text-uppercase text-body-secondary small fw-semibold mb-2 px-2">Principal</p>
+      <ul class="nav flex-column gap-1 mb-3">
+        <li class="nav-item">
+          <a href="{% url 'dashboard:dashboard' %}"
+             class="nav-link d-flex align-items-center gap-2 rounded px-3 py-2 {% if request.resolver_match.url_name == 'dashboard' %}active bg-primary-subtle fw-semibold{% endif %}">
+            <i class="bi bi-speedometer2"></i> Dashboard
+          </a>
+        </li>
+      </ul>
+
+      <p class="text-uppercase text-body-secondary small fw-semibold mb-2 px-2">Aplicaciones</p>
+      <ul class="nav flex-column gap-1 mb-3">
+        <li class="nav-item">
+          <a href="{% url 'reportes:index' %}"
+             class="nav-link d-flex align-items-center gap-2 rounded px-3 py-2 {% if request.resolver_match.url_name == 'index' and 'reportes' in request.resolver_match.namespace %}active bg-primary-subtle fw-semibold{% endif %}">
+            <i class="bi bi-bar-chart-line"></i> Reportes
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'alertas:index' %}"
+             class="nav-link d-flex align-items-center gap-2 rounded px-3 py-2 {% if request.resolver_match.url_name == 'index' and 'alertas' in request.resolver_match.namespace %}active bg-primary-subtle fw-semibold{% endif %}">
+            <i class="bi bi-bell"></i> Alertas
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'suscripciones:planes' %}"
+             class="nav-link d-flex align-items-center gap-2 rounded px-3 py-2 {% if request.resolver_match.url_name == 'planes' %}active bg-primary-subtle fw-semibold{% endif %}">
+            <i class="bi bi-star"></i> Planes
+            {% if not request.user.is_premium %}
+              <span class="badge bg-warning text-dark ms-auto">Free</span>
+            {% else %}
+              <span class="badge bg-primary ms-auto">Premium</span>
+            {% endif %}
+          </a>
+        </li>
+      </ul>
+
+      {# Preferencia de tema en sidebar #}
+      <div class="mt-auto">
+        <hr>
+        <p class="text-uppercase text-body-secondary small fw-semibold mb-2 px-2">Tema</p>
+        <div class="d-flex gap-2 px-2 mb-3">
+          <button class="btn btn-sm btn-outline-secondary flex-fill sidebar-theme-btn" data-theme="light">
+            <i class="bi bi-sun me-1"></i>Claro
+          </button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill sidebar-theme-btn" data-theme="dark">
+            <i class="bi bi-moon me-1"></i>Oscuro
+          </button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill sidebar-theme-btn" data-theme="auto">
+            <i class="bi bi-circle-half me-1"></i>Auto
+          </button>
+        </div>
+        <a href="{% url 'accounts:logout' %}"
+           class="nav-link text-danger d-flex align-items-center gap-2 rounded px-3 py-2">
+          <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Mensajes flash ── #}
+  {% if messages %}
+  <div class="container-fluid px-4 pt-3">
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% elif msg.tags %}{{ msg.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Contenido de la página ── #}
+  {% block content %}{% endblock %}
+
+  {# ── Bootstrap 5.3.3 JS Bundle ── #}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // ── Lógica de tema ──────────────────────────────────────────────────────
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const themeIcon      = document.getElementById('theme-icon');
+    const isLoggedIn     = {{ request.user.is_authenticated|yesno:"true,false" }};
+    const csrfToken      = '{{ csrf_token }}';
+
+    function getActiveTheme() {
+      return document.documentElement.getAttribute('data-bs-theme');
+    }
+
+    function applyTheme(theme) {
+      // Si 'auto', resolver según preferencia del sistema
+      let resolved = theme;
+      if (theme === 'auto') {
+        resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-bs-theme', resolved);
+      // Actualizar icono
+      themeIcon.className = resolved === 'dark' ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+    }
+
+    function saveTheme(theme) {
+      if (isLoggedIn) {
+        fetch('{% url "accounts:set_theme" %}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+          body: JSON.stringify({ theme: theme })
+        });
+      } else {
+        localStorage.setItem('monitorea-theme', theme === 'auto'
+          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : theme);
+      }
+    }
+
+    // Inicializar icono según tema activo
+    (function () {
+      const t = getActiveTheme();
+      themeIcon.className = t === 'dark' ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+    })();
+
+    // Navbar toggle (alterna entre dark y light)
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', function () {
+        const next = getActiveTheme() === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        saveTheme(next);
+      });
+    }
+
+    // Botones de tema en sidebar
+    document.querySelectorAll('.sidebar-theme-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const t = this.dataset.theme;
+        applyTheme(t);
+        saveTheme(t);
+      });
+    });
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

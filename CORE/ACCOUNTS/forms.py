@@ -9,14 +9,14 @@ class LoginForm(AuthenticationForm):
         widget=forms.TextInput(attrs={
             'placeholder': 'Usuario',
             'autofocus': True,
-            'class': 'form-input',
+            'class': 'form-control',
         }),
     )
     password = forms.CharField(
         label='Contraseña',
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Contraseña',
-            'class': 'form-input',
+            'class': 'form-control',
         }),
     )
 
@@ -27,7 +27,7 @@ class RegisterForm(UserCreationForm):
         label='Email',
         widget=forms.EmailInput(attrs={
             'placeholder': 'email@ejemplo.com',
-            'class': 'form-input',
+            'class': 'form-control',
         }),
     )
 
@@ -37,7 +37,7 @@ class RegisterForm(UserCreationForm):
         widgets = {
             'username': forms.TextInput(attrs={
                 'placeholder': 'Nombre de usuario',
-                'class': 'form-input',
+                'class': 'form-control',
             }),
         }
 
@@ -45,9 +45,9 @@ class RegisterForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         self.fields['password1'].widget.attrs.update({
             'placeholder': 'Contraseña',
-            'class': 'form-input',
+            'class': 'form-control',
         })
         self.fields['password2'].widget.attrs.update({
             'placeholder': 'Confirmar contraseña',
-            'class': 'form-input',
+            'class': 'form-control',
         })

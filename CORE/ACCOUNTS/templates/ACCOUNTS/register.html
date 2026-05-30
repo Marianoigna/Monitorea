@@ -1,183 +1,111 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MONITOREA — Crear cuenta</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+{% extends 'base.html' %}
 
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem 0;
-    }
+{% block title %}Monitorea — Crear cuenta{% endblock %}
 
-    .auth-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 2.5rem 2rem;
-      width: 100%;
-      max-width: 420px;
-    }
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
 
-    .auth-logo {
-      text-align: center;
-      margin-bottom: 1.8rem;
-    }
-
-    .auth-logo h1 {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: #58a6ff;
-      letter-spacing: 2px;
-    }
-
-    .auth-logo p {
-      font-size: 0.85rem;
-      color: #8b949e;
-      margin-top: 0.3rem;
-    }
-
-    .plan-badge {
-      display: flex;
-      gap: 0.6rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .plan {
-      flex: 1;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 0.8rem;
-      text-align: center;
-      font-size: 0.8rem;
-    }
-
-    .plan.free  { border-color: #30363d; }
-    .plan.prem  { border-color: #58a6ff; }
-
-    .plan .plan-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.3rem; }
-    .plan.free  .plan-name { color: #8b949e; }
-    .plan.prem  .plan-name { color: #58a6ff; }
-
-    .plan ul { list-style: none; color: #8b949e; line-height: 1.7; }
-    .plan .check { color: #2ea043; }
-    .plan .cross { color: #f85149; }
-
-    .form-group { margin-bottom: 1.1rem; }
-
-    label {
-      display: block;
-      font-size: 0.85rem;
-      color: #8b949e;
-      margin-bottom: 0.4rem;
-    }
-
-    .form-input {
-      width: 100%;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #e6edf3;
-      padding: 0.65rem 0.85rem;
-      font-size: 0.95rem;
-      transition: border-color 0.2s;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: #58a6ff;
-    }
-
-    .btn-primary {
-      width: 100%;
-      background: #238636;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 0.75rem;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 0.5rem;
-      transition: background 0.2s;
-    }
-
-    .btn-primary:hover { background: #2ea043; }
-
-    .auth-footer {
-      text-align: center;
-      margin-top: 1.4rem;
-      font-size: 0.88rem;
-      color: #8b949e;
-    }
-
-    .auth-footer a { color: #58a6ff; text-decoration: none; }
-    .auth-footer a:hover { text-decoration: underline; }
-
-    .field-errors { margin-top: 0.3rem; }
-    .field-errors li {
-      list-style: none;
-      font-size: 0.82rem;
-      color: #f85149;
-    }
-  </style>
-</head>
-<body>
-  <div class="auth-card">
-    <div class="auth-logo">
-      <h1>MONITOREA</h1>
-      <p>Creá tu cuenta — es gratis</p>
-    </div>
-
-    <div class="plan-badge">
-      <div class="plan free">
-        <div class="plan-name">Gratuito</div>
-        <ul>
-          <li><span class="check">✓</span> Dashboard tiempo real</li>
-          <li><span class="cross">✗</span> Reportes históricos</li>
-          <li><span class="cross">✗</span> Alertas SMS/email</li>
-        </ul>
+      <div class="text-center mb-4">
+        <h1 class="h3 fw-bold"><span class="text-primary">Monitorea</span></h1>
+        <p class="text-body-secondary small">Creá tu cuenta y empezá a monitorear</p>
       </div>
-      <div class="plan prem">
-        <div class="plan-name">Premium</div>
-        <ul>
-          <li><span class="check">✓</span> Dashboard tiempo real</li>
-          <li><span class="check">✓</span> Reportes históricos</li>
-          <li><span class="check">✓</span> Alertas SMS/email</li>
-        </ul>
+
+      {# Comparativa de planes #}
+      <div class="row g-2 mb-4">
+        <div class="col-6">
+          <div class="card border h-100">
+            <div class="card-body p-3">
+              <p class="fw-bold text-body-secondary mb-2">Free</p>
+              <ul class="list-unstyled mb-0 small text-body-secondary">
+                <li><i class="bi bi-check-circle-fill text-success me-1"></i>Dashboard</li>
+                <li><i class="bi bi-check-circle-fill text-success me-1"></i>MQTT en tiempo real</li>
+                <li><i class="bi bi-x-circle-fill text-danger me-1"></i>Reportes</li>
+                <li><i class="bi bi-x-circle-fill text-danger me-1"></i>Alertas</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card border border-primary h-100">
+            <div class="card-body p-3">
+              <p class="fw-bold text-primary mb-2">Premium</p>
+              <ul class="list-unstyled mb-0 small text-body-secondary">
+                <li><i class="bi bi-check-circle-fill text-success me-1"></i>Dashboard</li>
+                <li><i class="bi bi-check-circle-fill text-success me-1"></i>MQTT en tiempo real</li>
+                <li><i class="bi bi-check-circle-fill text-success me-1"></i>Reportes</li>
+                <li><i class="bi bi-check-circle-fill text-success me-1"></i>Alertas</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <form method="post" novalidate>
-      {% csrf_token %}
+      <div class="card border shadow-sm">
+        <div class="card-body p-4">
 
-      {% for field in form %}
-      <div class="form-group">
-        {{ field.label_tag }}
-        {{ field }}
-        {% if field.errors %}
-        <ul class="field-errors">
-          {% for e in field.errors %}<li>{{ e }}</li>{% endfor %}
-        </ul>
-        {% endif %}
+          {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+            <div class="alert alert-danger py-2" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+            </div>
+            {% endfor %}
+          {% endif %}
+
+          <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label for="{{ form.username.id_for_label }}" class="form-label fw-semibold">{{ form.username.label }}</label>
+              {{ form.username }}
+              {% if form.username.errors %}
+                <div class="invalid-feedback d-block">{% for e in form.username.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.email.id_for_label }}" class="form-label fw-semibold">{{ form.email.label }}</label>
+              {{ form.email }}
+              {% if form.email.errors %}
+                <div class="invalid-feedback d-block">{% for e in form.email.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.password1.id_for_label }}" class="form-label fw-semibold">{{ form.password1.label }}</label>
+              {{ form.password1 }}
+              {% if form.password1.help_text %}
+                <div class="form-text">{{ form.password1.help_text }}</div>
+              {% endif %}
+              {% if form.password1.errors %}
+                <div class="invalid-feedback d-block">{% for e in form.password1.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-4">
+              <label for="{{ form.password2.id_for_label }}" class="form-label fw-semibold">{{ form.password2.label }}</label>
+              {{ form.password2 }}
+              {% if form.password2.errors %}
+                <div class="invalid-feedback d-block">{% for e in form.password2.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <div class="d-grid">
+              <button type="submit" class="btn btn-primary fw-semibold">
+                <i class="bi bi-person-plus me-2"></i>Crear cuenta
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-      {% endfor %}
 
-      <button type="submit" class="btn-primary">Crear cuenta</button>
-    </form>
+      <p class="text-center text-body-secondary small mt-3">
+        ¿Ya tenés cuenta?
+        <a href="{% url 'accounts:login' %}" class="text-primary fw-semibold">Iniciá sesión</a>
+      </p>
 
-    <div class="auth-footer">
-      ¿Ya tenés cuenta? <a href="{% url 'accounts:login' %}">Iniciá sesión</a>
     </div>
   </div>
-</body>
-</html>
+</div>
+{% endblock %}

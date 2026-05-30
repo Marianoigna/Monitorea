@@ -4,7 +4,8 @@ from . import views
 app_name = 'accounts'
 
 urlpatterns = [
-    path('login/',    views.login_view,    name='login'),
-    path('logout/',   views.logout_view,   name='logout'),
-    path('registro/', views.register_view, name='registro'),
+    path('login/',           views.login_view,    name='login'),
+    path('logout/',          views.logout_view,   name='logout'),
+    path('registro/',        views.register_view, name='registro'),
+    path('preferencias/tema/', views.set_theme,   name='set_theme'),
 ]

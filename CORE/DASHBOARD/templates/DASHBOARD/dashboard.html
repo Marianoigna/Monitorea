@@ -1,531 +1,263 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CONTROL TEMPERATURA Y VOLTAJE</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+{% extends 'base.html' %}
 
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #0d1117;
-            color: #e6edf3;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
+{% block title %}Monitorea — Dashboard{% endblock %}
 
-        .panel {
-            display: flex;
-            flex-direction: row;
-            align-items: stretch;
-            gap: 1.5rem;
-        }
-
-        .card-grafico {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 380px;
-            height: 380px;
-        }
-
-        .card-grafico h3 {
-            font-size: 0.75rem;
-            letter-spacing: 2px;
-            color: #484f58;
-            margin-bottom: 1.2rem;
-            text-transform: uppercase;
-        }
-
-        h1 {
-            font-size: 1.4rem;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: #8b949e;
-            margin-bottom: 2rem;
-        }
-
-        .card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 380px;
-            height: 380px;
-        }
-
-        .sensor-label {
-            font-size: 0.85rem;
-            color: #8b949e;
-            letter-spacing: 2px;
-            margin-bottom: 0.5rem;
-        }
-
-        .temperatura-valor {
-            font-size: 6rem;
-            font-weight: 700;
-            color: #58a6ff;
-            line-height: 1;
-            transition: color 0.4s ease;
-        }
-
-        .temperatura-valor.caliente { color: #f85149; }
-        .temperatura-valor.frio     { color: #79c0ff; }
-
-        .unidad {
-            font-size: 2rem;
-            color: #8b949e;
-            margin-left: 0.3rem;
-        }
-
-        .timestamp {
-            margin-top: 1.5rem;
-            font-size: 0.8rem;
-            color: #484f58;
-        }
-
-        .status {
-            margin-top: 2rem;
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #3fb950;
-            animation: pulse 1.5s infinite;
-        }
-        .dot.desconectado { background: #f85149; animation: none; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50%       { opacity: 0.3; }
-        }
-
-
-        .voltaje-valor {
-            font-size: 6rem;
-            font-weight: 700;
-            color: #3fb950;
-            line-height: 1;
-            transition: color 0.4s ease;
-        }
-        .voltaje-valor.bajo { color: #f85149; }
-
-        .panels-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        /* ── Hamburger menu ── */
-        .hamburger-btn {
-            position: fixed;
-            top: 1.2rem;
-            left: 1.2rem;
-            z-index: 1000;
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            width: 44px;
-            height: 44px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .hamburger-btn:hover { background: #21262d; }
-        .hamburger-btn span {
-            display: block;
-            width: 22px;
-            height: 2px;
-            background: #8b949e;
-            border-radius: 2px;
-            transition: transform 0.3s, opacity 0.3s;
-        }
-        .hamburger-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-        .hamburger-btn.open span:nth-child(2) { opacity: 0; }
-        .hamburger-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-        .sidebar-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.55);
-            z-index: 900;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-        .sidebar-overlay.visible {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 260px;
-            background: #161b22;
-            border-right: 1px solid #30363d;
-            z-index: 950;
-            padding: 5rem 1.5rem 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-        }
-        .sidebar.open { transform: translateX(0); }
-
-        .sidebar-logo {
-            position: absolute;
-            top: 1.2rem;
-            left: 1.2rem;
-            font-size: 0.7rem;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: #484f58;
-        }
-        .sidebar-logo span { color: #58a6ff; }
-
-        .sidebar-label {
-            font-size: 0.65rem;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #484f58;
-            padding: 0.4rem 0.5rem 0.2rem;
-            margin-top: 0.5rem;
-        }
-
-        .sidebar a {
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            text-decoration: none;
-            color: #8b949e;
-            font-size: 0.95rem;
-            transition: background 0.15s, color 0.15s;
-        }
-        .sidebar a:hover { background: #21262d; color: #e6edf3; }
-        .sidebar a .nav-icon { font-size: 1.1rem; width: 1.4rem; text-align: center; }
-
-        .sidebar-divider {
-            height: 1px;
-            background: #30363d;
-            margin: 0.8rem 0;
-        }
-
-        .sidebar a.danger { color: #f85149; }
-        .sidebar a.danger:hover { background: rgba(248,81,73,0.1); color: #f85149; }
-
-    </style>
-</head>
-<body>
-
-<!-- Hamburger button -->
-<button class="hamburger-btn" id="hamburger-btn" aria-label="Menú">
-    <span></span><span></span><span></span>
-</button>
-
-<!-- Sidebar overlay -->
-<div class="sidebar-overlay" id="sidebar-overlay"></div>
-
-<!-- Sidebar -->
-<nav class="sidebar" id="sidebar">
-    <div class="sidebar-logo"><span>Monitorea</span></div>
-
-    <span class="sidebar-label">Principal</span>
-    <a href="{% url 'dashboard:dashboard' %}">
-        <span class="nav-icon">📡</span> Dashboard
-    </a>
-
-    <span class="sidebar-label">Aplicaciones</span>
-    <a href="{% url 'reportes:index' %}">
-        <span class="nav-icon">📊</span> Reportes
-    </a>
-    <a href="{% url 'alertas:index' %}">
-        <span class="nav-icon">🔔</span> Alertas
-    </a>
-
-    <div class="sidebar-divider"></div>
-
-    <a href="{% url 'accounts:logout' %}" class="danger">
-        <span class="nav-icon">🚪</span> Cerrar sesión
-    </a>
-</nav>
-
-<script>
-    const btn = document.getElementById('hamburger-btn');
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-
-    function toggleMenu() {
-        btn.classList.toggle('open');
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('visible');
-    }
-
-    btn.addEventListener('click', toggleMenu);
-    overlay.addEventListener('click', toggleMenu);
-</script>
-
-
-<h1>CONTROL TEMPERATURA Y VOLTAJE</h1>
-
-<div class="panels-wrapper">
-
-<div class="panel">
-<div class="card">
-    <div class="sensor-label" id="sensor-id">SENSOR TEMPERATURA</div>
-
-    <div>
-        <span class="temperatura-valor" id="temperatura">
-            {% if ultima %}{{ ultima.valor }}{% else %}--{% endif %}
-        </span>
-        <span class="unidad">°C</span>
-    </div>
-
-    <div class="timestamp" id="timestamp">
-        {% if ultima %}Última lectura: {{ ultima.timestamp }}{% else %}Sin datos aún{% endif %}
-    </div>
-
-    <div class="status">
-        <div class="dot desconectado" id="ws-dot"></div>
-        <span id="ws-status">Conectando...</span>
-    </div>
-
-
-</div>
-
-<div class="card-grafico">
-    <h3>Últimas 5 lecturas</h3>
-    <canvas id="grafico-temp" width="320" height="280"></canvas>
-</div>
-
-</div>
-
-<!-- PANEL VOLTAJE -->
-<div class="panel">
-<div class="card">
-    <div class="sensor-label" id="volt-sensor-id">SENSOR VOLTAJE</div>
-
-    <div>
-        <span class="voltaje-valor" id="voltaje">
-            {% if ultimo_volt %}{{ ultimo_volt.valor }}{% else %}--{% endif %}
-        </span>
-        <span class="unidad">V</span>
-    </div>
-
-    <div class="timestamp" id="volt-timestamp">
-        {% if ultimo_volt %}Última lectura: {{ ultimo_volt.timestamp }}{% else %}Sin datos aún{% endif %}
-    </div>
-
-    <div class="status">
-        <div class="dot desconectado" id="ws-volt-dot"></div>
-        <span id="ws-volt-status">Conectando...</span>
-    </div>
-</div>
-
-<div class="card-grafico">
-    <h3>Voltaje actual</h3>
-    <canvas id="grafico-volt" width="320" height="280"></canvas>
-</div>
-</div>
-
-</div>
-
+{% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  <div class="d-flex align-items-center mb-4 gap-2">
+    <i class="bi bi-speedometer2 fs-4 text-primary"></i>
+    <h4 class="fw-bold mb-0">Control Temperatura y Voltaje</h4>
+  </div>
+
+  <div class="row g-4">
+
+    {# ── TEMPERATURA — valor ── #}
+    <div class="col-12 col-lg-6">
+      <div class="card border h-100">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-4">
+          <p class="text-uppercase text-body-secondary small fw-semibold mb-1" id="sensor-id">
+            Sensor temperatura
+          </p>
+          <div class="my-3">
+            <span class="display-1 fw-bold text-primary" id="temperatura">
+              {% if ultima %}{{ ultima.valor }}{% else %}--{% endif %}
+            </span>
+            <span class="fs-3 text-body-secondary">&nbsp;&deg;C</span>
+          </div>
+          <p class="text-body-secondary small mb-3" id="timestamp">
+            {% if ultima %}Última lectura: {{ ultima.timestamp }}{% else %}Sin datos aún{% endif %}
+          </p>
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-circle-fill text-danger small" id="ws-dot"></i>
+            <small class="text-body-secondary" id="ws-status">Conectando...</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── TEMPERATURA — gráfico ── #}
+    <div class="col-12 col-lg-6">
+      <div class="card border h-100">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center p-4">
+          <p class="text-uppercase text-body-secondary small fw-semibold mb-3">Últimas 5 lecturas</p>
+          <canvas id="grafico-temp" width="340" height="260"></canvas>
+        </div>
+      </div>
+    </div>
+
+    {# ── VOLTAJE — valor ── #}
+    <div class="col-12 col-lg-6">
+      <div class="card border h-100">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-4">
+          <p class="text-uppercase text-body-secondary small fw-semibold mb-1" id="volt-sensor-id">
+            Sensor voltaje
+          </p>
+          <div class="my-3">
+            <span class="display-1 fw-bold text-success" id="voltaje">
+              {% if ultimo_volt %}{{ ultimo_volt.valor }}{% else %}--{% endif %}
+            </span>
+            <span class="fs-3 text-body-secondary">&nbsp;V</span>
+          </div>
+          <p class="text-body-secondary small mb-3" id="volt-timestamp">
+            {% if ultimo_volt %}Última lectura: {{ ultimo_volt.timestamp }}{% else %}Sin datos aún{% endif %}
+          </p>
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-circle-fill text-danger small" id="ws-volt-dot"></i>
+            <small class="text-body-secondary" id="ws-volt-status">Conectando...</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── VOLTAJE — gráfico ── #}
+    <div class="col-12 col-lg-6">
+      <div class="card border h-100">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center p-4">
+          <p class="text-uppercase text-body-secondary small fw-semibold mb-3">Voltaje actual</p>
+          <canvas id="grafico-volt" width="340" height="260"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-    // ── Datos iniciales desde Django ─────────────────────────────────────────
-    const initLabels = [{% for r in ultimos %}"{{ r.timestamp|date:'H:i:s' }}"{% if not forloop.last %},{% endif %}{% endfor %}];
-    const initData   = [{% for r in ultimos %}{{ r.valor }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  // ── Utilidad: colores según tema activo ──────────────────────────────────
+  function chartColors() {
+    const dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    return {
+      text:   dark ? '#adb5bd' : '#6c757d',
+      grid:   dark ? '#343a40' : '#dee2e6',
+      temp:   '#0d6efd',
+      tempBg: 'rgba(13,110,253,0.1)',
+    };
+  }
 
-    // ── Chart.js ─────────────────────────────────────────────────────────────
-    const ctx = document.getElementById('grafico-temp').getContext('2d');
-    const grafico = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: initLabels,
-            datasets: [{
-                label: 'Temperatura (°C)',
-                data: initData,
-                borderColor: '#58a6ff',
-                backgroundColor: 'rgba(88,166,255,0.1)',
-                borderWidth: 2,
-                pointBackgroundColor: '#58a6ff',
-                pointRadius: 5,
-                tension: 0.3,
-                fill: true,
-            }]
-        },
-        options: {
-            animation: { duration: 400 },
-            scales: {
-                x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
-                y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
-            },
-            plugins: {
-                legend: { labels: { color: '#8b949e' } }
-            }
-        }
-    });
+  // ── Datos iniciales desde Django ─────────────────────────────────────────
+  const initLabels = [{% for r in ultimos %}"{{ r.timestamp|date:'H:i:s' }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+  const initData   = [{% for r in ultimos %}{{ r.valor }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  const c = chartColors();
 
-    function agregarPuntoGrafico(valor, timestamp) {
-        const hora = new Date(timestamp).toLocaleTimeString();
-        grafico.data.labels.push(hora);
-        grafico.data.datasets[0].data.push(valor);
-        if (grafico.data.labels.length > 5) {
-            grafico.data.labels.shift();
-            grafico.data.datasets[0].data.shift();
-        }
-        grafico.update();
+  // ── Chart temperatura (línea) ─────────────────────────────────────────────
+  const ctx    = document.getElementById('grafico-temp').getContext('2d');
+  const grafico = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: initLabels,
+      datasets: [{
+        label: 'Temperatura (°C)',
+        data:   initData,
+        borderColor:     c.temp,
+        backgroundColor: c.tempBg,
+        borderWidth: 2,
+        pointBackgroundColor: c.temp,
+        pointRadius: 5,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      animation: { duration: 400 },
+      scales: {
+        x: { ticks: { color: c.text }, grid: { color: c.grid } },
+        y: { ticks: { color: c.text }, grid: { color: c.grid } },
+      },
+      plugins: { legend: { labels: { color: c.text } } }
     }
+  });
 
-    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${wsProto}://${window.location.host}/ws/temperatura/`;
-    let socket;
-
-    function conectar() {
-        socket = new WebSocket(wsUrl);
-
-        socket.onopen = () => {
-            document.getElementById('ws-dot').classList.remove('desconectado');
-            document.getElementById('ws-status').textContent = 'Conectado en tiempo real';
-        };
-
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            const valorEl = document.getElementById('temperatura');
-
-            // Actualizar valor
-            valorEl.textContent = data.valor.toFixed(1);
-            document.getElementById('sensor-id').textContent = data.sensor_id.toUpperCase();
-            document.getElementById('timestamp').textContent = `Última lectura: ${new Date(data.timestamp).toLocaleString()}`;
-
-            // Color según temperatura
-            valorEl.classList.remove('caliente', 'frio');
-            if (data.valor >= 40) valorEl.classList.add('caliente');
-            else if (data.valor <= 10) valorEl.classList.add('frio');
-
-            // Actualizar gráfico
-            agregarPuntoGrafico(data.valor, data.timestamp);
-        };
-
-        socket.onclose = () => {
-            document.getElementById('ws-dot').classList.add('desconectado');
-            document.getElementById('ws-status').textContent = 'Desconectado — reintentando...';
-            setTimeout(conectar, 3000);  // reconexión automática
-        };
-
-        socket.onerror = () => socket.close();
+  function agregarPuntoGrafico(valor, timestamp) {
+    const hora = new Date(timestamp).toLocaleTimeString();
+    grafico.data.labels.push(hora);
+    grafico.data.datasets[0].data.push(valor);
+    if (grafico.data.labels.length > 5) {
+      grafico.data.labels.shift();
+      grafico.data.datasets[0].data.shift();
     }
+    grafico.update();
+  }
 
-    conectar();
+  // ── WebSocket temperatura ─────────────────────────────────────────────────
+  const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUrl   = `${wsProto}://${window.location.host}/ws/temperatura/`;
+  let socket;
 
-    // ── VOLTAJE WebSocket + Chart barra ──────────────────────────────────────
-    const ctxVolt = document.getElementById('grafico-volt').getContext('2d');
-    const valorInicialVolt = {% if ultimo_volt %}{{ ultimo_volt.valor }}{% else %}0{% endif %};
-    const colorBarraVolt = valorInicialVolt < 180 ? '#f85149' : '#3fb950';
+  function conectar() {
+    socket = new WebSocket(wsUrl);
 
-    const graficoVolt = new Chart(ctxVolt, {
-        type: 'bar',
-        data: {
-            labels: ['Voltaje'],
-            datasets: [{
-                label: 'Voltaje (V)',
-                data: [valorInicialVolt],
-                backgroundColor: [colorBarraVolt],
-                borderRadius: 8,
-                barThickness: 80,
-            }]
-        },
-        options: {
-            animation: { duration: 400 },
-            scales: {
-                x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
-                y: {
-                    ticks: { color: '#8b949e' },
-                    grid: { color: '#21262d' },
-                    min: 0,
-                    max: 300,
-                }
-            },
-            plugins: {
-                legend: { labels: { color: '#8b949e' } }
-            }
-        }
-    });
+    socket.onopen = () => {
+      document.getElementById('ws-dot').classList.replace('text-danger', 'text-success');
+      document.getElementById('ws-status').textContent = 'Conectado en tiempo real';
+    };
 
-    function actualizarGraficoVolt(valor) {
-        const color = valor < 180 ? '#f85149' : '#3fb950';
-        graficoVolt.data.datasets[0].data[0] = valor;
-        graficoVolt.data.datasets[0].backgroundColor[0] = color;
-        graficoVolt.update();
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const valorEl = document.getElementById('temperatura');
+
+      valorEl.textContent = data.valor.toFixed(1);
+      document.getElementById('sensor-id').textContent = data.sensor_id.toUpperCase();
+      document.getElementById('timestamp').textContent =
+        `Última lectura: ${new Date(data.timestamp).toLocaleString()}`;
+
+      // Color Bootstrap según temperatura
+      valorEl.classList.remove('text-primary', 'text-danger', 'text-info');
+      if (data.valor >= 40)      valorEl.classList.add('text-danger');
+      else if (data.valor <= 10) valorEl.classList.add('text-info');
+      else                       valorEl.classList.add('text-primary');
+
+      agregarPuntoGrafico(data.valor, data.timestamp);
+    };
+
+    socket.onclose = () => {
+      document.getElementById('ws-dot').classList.replace('text-success', 'text-danger');
+      document.getElementById('ws-status').textContent = 'Desconectado — reintentando...';
+      setTimeout(conectar, 3000);
+    };
+
+    socket.onerror = () => socket.close();
+  }
+
+  conectar();
+
+  // ── Chart voltaje (barra) ─────────────────────────────────────────────────
+  const ctxVolt         = document.getElementById('grafico-volt').getContext('2d');
+  const valorInicialVolt = {% if ultimo_volt %}{{ ultimo_volt.valor }}{% else %}0{% endif %};
+  const colorBarraVolt  = valorInicialVolt < 180 ? '#dc3545' : '#198754';
+
+  const graficoVolt = new Chart(ctxVolt, {
+    type: 'bar',
+    data: {
+      labels: ['Voltaje'],
+      datasets: [{
+        label: 'Voltaje (V)',
+        data:  [valorInicialVolt],
+        backgroundColor: [colorBarraVolt],
+        borderRadius: 8,
+        barThickness: 80,
+      }]
+    },
+    options: {
+      animation: { duration: 400 },
+      scales: {
+        x: { ticks: { color: c.text }, grid: { color: c.grid } },
+        y: { ticks: { color: c.text }, grid: { color: c.grid }, min: 0, max: 300 },
+      },
+      plugins: { legend: { labels: { color: c.text } } }
     }
+  });
 
-    const wsVoltProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsVoltUrl = `${wsVoltProto}://${window.location.host}/ws/voltaje/`;
-    let socketVolt;
+  function actualizarGraficoVolt(valor) {
+    const color = valor < 180 ? '#dc3545' : '#198754';
+    graficoVolt.data.datasets[0].data[0] = valor;
+    graficoVolt.data.datasets[0].backgroundColor[0] = color;
+    graficoVolt.update();
+  }
 
-    function conectarVolt() {
-        socketVolt = new WebSocket(wsVoltUrl);
+  // ── WebSocket voltaje ─────────────────────────────────────────────────────
+  const wsVoltUrl = `${wsProto}://${window.location.host}/ws/voltaje/`;
+  let socketVolt;
 
-        socketVolt.onopen = () => {
-            document.getElementById('ws-volt-dot').classList.remove('desconectado');
-            document.getElementById('ws-volt-status').textContent = 'Conectado en tiempo real';
-        };
+  function conectarVolt() {
+    socketVolt = new WebSocket(wsVoltUrl);
 
-        socketVolt.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            const valorEl = document.getElementById('voltaje');
+    socketVolt.onopen = () => {
+      document.getElementById('ws-volt-dot').classList.replace('text-danger', 'text-success');
+      document.getElementById('ws-volt-status').textContent = 'Conectado en tiempo real';
+    };
 
-            valorEl.textContent = data.valor.toFixed(1);
-            document.getElementById('volt-sensor-id').textContent = data.sensor_id.toUpperCase();
-            document.getElementById('volt-timestamp').textContent = `Última lectura: ${new Date(data.timestamp).toLocaleString()}`;
+    socketVolt.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const valorEl = document.getElementById('voltaje');
 
-            valorEl.classList.toggle('bajo', data.valor < 180);
-            actualizarGraficoVolt(data.valor);
-        };
+      valorEl.textContent = data.valor.toFixed(1);
+      document.getElementById('volt-sensor-id').textContent = data.sensor_id.toUpperCase();
+      document.getElementById('volt-timestamp').textContent =
+        `Última lectura: ${new Date(data.timestamp).toLocaleString()}`;
 
-        socketVolt.onclose = () => {
-            document.getElementById('ws-volt-dot').classList.add('desconectado');
-            document.getElementById('ws-volt-status').textContent = 'Desconectado — reintentando...';
-            setTimeout(conectarVolt, 3000);
-        };
+      // Color Bootstrap según voltaje
+      valorEl.classList.remove('text-success', 'text-danger');
+      valorEl.classList.add(data.valor < 180 ? 'text-danger' : 'text-success');
 
-        socketVolt.onerror = () => socketVolt.close();
-    }
+      actualizarGraficoVolt(data.valor);
+    };
 
-    conectarVolt();
+    socketVolt.onclose = () => {
+      document.getElementById('ws-volt-dot').classList.replace('text-success', 'text-danger');
+      document.getElementById('ws-volt-status').textContent = 'Desconectado — reintentando...';
+      setTimeout(conectarVolt, 3000);
+    };
+
+    socketVolt.onerror = () => socketVolt.close();
+  }
+
+  conectarVolt();
 </script>
-
-</body>
-</html>
+{% endblock %}

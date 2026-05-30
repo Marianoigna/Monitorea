@@ -14,6 +14,7 @@
 ║  ✅  Control acceso   ║  @requiere_premium · redirect a planes        ║
 ║  ✅  Página de planes ║  Vista intermediaria con cards Gratis/Premium ║
 ║  ✅  MercadoPago      ║  Checkout Pro (modo TEST)                     ║
+║  ✅  Bootstrap UI     ║  base.html · tema claro/oscuro · sidebar      ║
 ║  🔄  Reportes         ║  Protegido · template pendiente               ║
 ║  🔄  Alertas          ║  Protegido · template pendiente               ║
 ║  🔄  PostgreSQL       ║  SQLite en dev → Postgres en producción       ║
@@ -228,9 +229,11 @@ Monitorea/                          ← raíz del repositorio
 │   │   ├── urls.py                 ← / · /dashboard/ · /api/...
 │   │   ├── mqtt_client.py
 │   │   ├── migrations/
-│   │   └── templates/DASHBOARD/
-│   │       ├── landing.html        ← página pública de bienvenida
-│   │       └── dashboard.html      ← UI tiempo real + menú hamburguesa
+│   │   └── templates/
+│   │       ├── base.html           ← template base global (navbar, sidebar, flash msgs, tema)
+│   │       └── DASHBOARD/
+│   │           ├── landing.html    ← página pública de bienvenida
+│   │           └── dashboard.html ← UI tiempo real + Chart.js
 │   │
 │   ├── REPORTES/                   ── 📈 históricos  🔒 premium ── 🔄 en desarrollo
 │   │   ├── views.py                ← @requiere_premium · (template pendiente)
@@ -243,8 +246,7 @@ Monitorea/                          ← raíz del repositorio
 ├── .env                            ← credenciales reales (NO en git)
 ├── venv/                           ← entorno virtual Python (NO en git)
 ├── requirements.txt
-├── levantar_servidor.bat           ← inicio rápido en Windows
-├── activar_entorno.bat
+├── levantar_servidor.bat           ← inicio rápido en Windows (doble clic)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── render.yaml                     ← configuración de deploy en Render
@@ -563,7 +565,14 @@ python manage.py migrate
 
 Se necesitan **dos procesos** corriendo al mismo tiempo:
 
-### Opción A — Desde la terminal (recomendado)
+### Opción A — Doble clic (Windows)
+
+Hacé doble clic en **`levantar_servidor.bat`** en la raíz del proyecto.  
+Se abre una ventana de consola que levanta Django + MQTT automáticamente.
+
+> El archivo activa el entorno virtual, arranca `daphne` desde `CORE/` y establece `MQTT_AUTOSTART=1`.
+
+### Opción B — Desde la terminal
 
 **Terminal 1 — Servidor Django:**
 ```bash
@@ -660,6 +669,7 @@ El archivo `render.yaml` configura el servicio automáticamente:
 ║    ✅    ║  @requiere_premium — protección de vistas                 ║
 ║    ✅    ║  Página de planes (/suscripciones/planes/)                ║
 ║    ✅    ║  MercadoPago Checkout Pro (modo TEST)                     ║
+║    ✅    ║  Bootstrap UI — base.html · sidebar · tema claro/oscuro   ║
 ║    🔄    ║  REPORTES — templates y lógica de filtros                 ║
 ║    🔄    ║  ALERTAS — templates y configuración de umbrales          ║
 ║    🔄    ║  Webhook MP → activar plan automáticamente                ║
