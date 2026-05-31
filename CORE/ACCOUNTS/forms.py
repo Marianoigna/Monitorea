@@ -30,10 +30,19 @@ class RegisterForm(UserCreationForm):
             'class': 'form-control',
         }),
     )
+    empresa = forms.CharField(
+        required=True,
+        max_length=150,
+        label='Empresa',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Nombre de su empresa',
+            'class': 'form-control',
+        }),
+    )
 
     class Meta:
         model = CustomUser
-        fields = ('username', 'email', 'password1', 'password2')
+        fields = ('username', 'empresa', 'email', 'password1', 'password2')
         widgets = {
             'username': forms.TextInput(attrs={
                 'placeholder': 'Nombre de usuario',

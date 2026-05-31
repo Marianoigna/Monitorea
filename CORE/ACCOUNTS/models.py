@@ -14,6 +14,9 @@ class CustomUser(AbstractUser):
     # Email único — necesario para identificar al usuario en el webhook de MercadoPago
     email = models.EmailField(unique=True)
 
+    # Nombre de la empresa del usuario (obligatorio en el registro)
+    empresa = models.CharField(max_length=150, help_text='Nombre de la empresa')
+
     # Preferencia de tema de la interfaz
     theme = models.CharField(max_length=10, default='auto', choices=THEME_CHOICES)
 

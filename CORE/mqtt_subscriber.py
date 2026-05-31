@@ -1,35 +1,42 @@
 """
 mqtt_subscriber.py
 ==================
-Se conecta al broker MQTT público de EMQX (broker.emqx.io),
-escucha los topics 'temperatura_prueba' y 'voltaje_prueba' en el puerto 8084 (WebSocket SSL)
-y reenvía cada lectura a la API REST de Django para que
-se guarde en SQLite3 y se actualice en tiempo real vía WebSocket.
+Se conecta al broker MQTT público de EMQX (broker.emqx.io) y escucha
+todos los tópicos de telemetría de los nodos ESP32 registrados en Monitorea.
 
 ──────────────────────────────────────────────────────────────
-CONFIGURACIÓN EN MQTTX (aplicación de escritorio):
+TÓPICO ESPERADO (publicado por el ESP32):
 ──────────────────────────────────────────────────────────────
-  1. Nueva conexión:
-       - Host:     broker.emqx.io
-       - Port:     8084
-       - Protocol: MQTT over WebSocket SSL (WSS)
-       - Client ID: (cualquiera, ej: mqttx_test_01)
-       - Sin usuario ni contraseña
+  monitorea/nodos/<MAC_ADDRESS>/telemetria
 
-  2. Publicar mensaje:
-       - Topic:   temperatura_prueba
-       - QoS:     0
-       - Payload (elige uno de estos formatos):
+  Donde <MAC_ADDRESS> es la dirección MAC del ESP32 en formato
+  AA:BB:CC:DD:EE:FF (mayúsculas, con dos puntos).
 
-           Formato simple (solo número):
-               25.3
-
-           Formato JSON (recomendado):
-               {"sensor_id": "sensor_01", "valor": 25.3}
-
-  3. Asegúrate de que mqtt_subscriber.py esté corriendo
-     antes de publicar desde MQTTX.
+PAYLOAD (JSON):
 ──────────────────────────────────────────────────────────────
+  {
+    "t": [25.4, 28.1],   ← array de temperaturas, índice = canal
+    "v": [220.5]         ← array de voltajes, índice = canal
+  }
+
+  Los arrays pueden tener cualquier cantidad de elementos según
+  los sensores conectados al dispositivo.
+
+CONFIGURACIÓN EN MQTTX (prueba desde escritorio):
+──────────────────────────────────────────────────────────────
+  - Host:     broker.emqx.io
+  - Port:     8084
+  - Protocol: MQTT over WebSocket SSL (WSS)
+  - Topic:    monitorea/nodos/AA:BB:CC:DD:EE:FF/telemetria
+  - Payload:  {"t": [25.4], "v": [220.5]}
+
+VARIABLES DE ENTORNO:
+──────────────────────────────────────────────────────────────
+  API_BASE_URL   → URL base del servidor Django (default: http://127.0.0.1:8000)
+  MQTT_BROKER    → Host del broker              (default: broker.emqx.io)
+  MQTT_PORT      → Puerto del broker            (default: 8084)
+  MQTT_USER      → Usuario MQTT (opcional)
+  MQTT_PASSWORD  → Contraseña MQTT (opcional)
 
 Uso:
     python mqtt_subscriber.py
@@ -38,34 +45,38 @@ Uso:
 import json
 import logging
 import os
-import requests
+import time
+
 import paho.mqtt.client as mqtt
+import requests
 
 from alertas import verificar_temperatura, verificar_voltaje
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-MQTT_BROKER        = 'broker.emqx.io'
-MQTT_PORT          = 8084
-MQTT_TOPIC_TEMP    = 'temperatura_prueba'
-MQTT_TOPIC_VOLT    = 'voltaje_prueba'
-MQTT_USER          = ''
-MQTT_PASSWORD      = ''
+MQTT_BROKER   = os.environ.get('MQTT_BROKER', 'broker.emqx.io')
+MQTT_PORT     = int(os.environ.get('MQTT_PORT', '8084'))
+MQTT_USER     = os.environ.get('MQTT_USER', '')
+MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', '')
 
-_API_BASE          = os.environ.get('API_BASE_URL', 'http://127.0.0.1:8000')
-API_URL_TEMP       = f'{_API_BASE}/api/temperatura/'
-API_URL_VOLT       = f'{_API_BASE}/api/voltaje/'
-SENSOR_ID_TEMP     = 'sensor_01'
-SENSOR_ID_VOLT     = 'voltaje_01'
+# Tópico wildcard: captura TODOS los nodos registrados
+MQTT_TOPIC    = 'monitorea/nodos/+/telemetria'
+
+API_BASE      = os.environ.get('API_BASE_URL', 'http://127.0.0.1:8000')
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+def _mac_from_topic(topic: str) -> str:
+    """Extrae la MAC del tópico 'monitorea/nodos/<MAC>/telemetria'."""
+    parts = topic.split('/')
+    return parts[2].upper()  # índice 2: AA:BB:CC:DD:EE:FF
 
 
 def on_connect(client, userdata, flags, reason_code, properties):
     print(f'[MQTT] Conectado al broker {MQTT_BROKER}:{MQTT_PORT}')
-    client.subscribe(MQTT_TOPIC_TEMP)
-    client.subscribe(MQTT_TOPIC_VOLT)
-    print(f'[MQTT] Suscrito a: {MQTT_TOPIC_TEMP}, {MQTT_TOPIC_VOLT}')
+    client.subscribe(MQTT_TOPIC)
+    print(f'[MQTT] Suscrito a: {MQTT_TOPIC}')
 
 
 def on_message(client, userdata, msg):
@@ -73,46 +84,49 @@ def on_message(client, userdata, msg):
     payload = msg.payload.decode('utf-8').strip()
     print(f'[MQTT] [{topic}] {payload}')
 
-    is_temp = (topic == MQTT_TOPIC_TEMP)
-    api_url   = API_URL_TEMP if is_temp else API_URL_VOLT
-    sensor_id = SENSOR_ID_TEMP if is_temp else SENSOR_ID_VOLT
-    unidad    = '°C' if is_temp else 'V'
-
     try:
-        try:
-            data = json.loads(payload)
-            valor     = float(data.get('valor', data))
-            sensor_id = data.get('sensor_id', sensor_id)
-        except (json.JSONDecodeError, TypeError):
-            valor = float(payload)
+        mac  = _mac_from_topic(topic)
+        data = json.loads(payload)
+    except (IndexError, json.JSONDecodeError) as e:
+        print(f'[ERROR] Tópico o payload inválido: {topic} — {e}')
+        return
 
-        response = requests.post(api_url, json={
-            'valor':     valor,
-            'sensor_id': sensor_id,
-        }, timeout=5)
+    t_values = data.get('t', [])
+    v_values = data.get('v', [])
 
+    # ── Reenviar a la API Django ──────────────────────────────────────────────
+    api_url = f'{API_BASE}/api/telemetria/{mac}/'
+    try:
+        response = requests.post(
+            api_url,
+            json={'t': t_values, 'v': v_values},
+            timeout=5,
+        )
         if response.status_code == 201:
-            print(f'[API]  ✔ Guardado: {sensor_id} → {valor}{unidad}')
+            print(f'[API]  ✔ {mac} → t={t_values}  v={v_values}')
+        elif response.status_code == 404:
+            print(f'[API]  ✘ Dispositivo no registrado: {mac}')
         else:
             print(f'[API]  ✘ Error {response.status_code}: {response.text}')
+    except requests.RequestException as e:
+        print(f'[ERROR] No se pudo conectar a la API: {e}')
+        return
 
-        # ── Verificar umbrales y enviar alerta WhatsApp si corresponde ──
-        if is_temp:
-            alerta = verificar_temperatura(sensor_id, valor)
-        else:
-            alerta = verificar_voltaje(sensor_id, valor)
-
+    # ── Verificar umbrales y alertas WhatsApp ─────────────────────────────────
+    for canal, valor in enumerate(t_values):
+        sensor_id = f'{mac}_t{canal}'
+        alerta = verificar_temperatura(sensor_id, valor)
         if alerta:
             print(f'[ALERTA] WhatsApp enviado: {alerta}')
 
-    except ValueError as e:
-        print(f'[ERROR] No se pudo parsear el valor: {payload} — {e}')
-    except requests.RequestException as e:
-        print(f'[ERROR] No se pudo conectar a la API: {e}')
+    for canal, valor in enumerate(v_values):
+        sensor_id = f'{mac}_v{canal}'
+        alerta = verificar_voltaje(sensor_id, valor)
+        if alerta:
+            print(f'[ALERTA] WhatsApp enviado: {alerta}')
 
 
 def main():
-    import time
     retry_delay = 5
 
     while True:

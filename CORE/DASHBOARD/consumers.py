@@ -2,35 +2,21 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 
-class TemperaturaConsumer(AsyncWebsocketConsumer):
+class TelemetriaConsumer(AsyncWebsocketConsumer):
+    """WebSocket por dispositivo (MAC). Grupo: telemetria_<MAC_con_guiones>."""
 
     async def connect(self):
-        await self.channel_layer.group_add('temperatura', self.channel_name)
+        mac = self.scope['url_route']['kwargs']['mac'].upper()
+        self.group_name = f'telemetria_{mac.replace(":", "_")}'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard('temperatura', self.channel_name)
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
-    async def send_temperatura(self, event):
+    async def send_telemetria(self, event):
         await self.send(text_data=json.dumps({
-            'sensor_id': event['sensor_id'],
-            'valor': event['valor'],
-            'timestamp': event['timestamp'],
-        }))
-
-
-class VoltajeConsumer(AsyncWebsocketConsumer):
-
-    async def connect(self):
-        await self.channel_layer.group_add('voltaje', self.channel_name)
-        await self.accept()
-
-    async def disconnect(self, close_code):
-        await self.channel_layer.group_discard('voltaje', self.channel_name)
-
-    async def send_voltaje(self, event):
-        await self.send(text_data=json.dumps({
-            'sensor_id': event['sensor_id'],
-            'valor': event['valor'],
-            'timestamp': event['timestamp'],
+            'mac': event['mac'],
+            't': event['t'],
+            'v': event['v'],
         }))
