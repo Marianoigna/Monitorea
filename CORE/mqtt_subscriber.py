@@ -2,12 +2,12 @@
 mqtt_subscriber.py
 ==================
 Se conecta al broker MQTT público de EMQX (broker.emqx.io) y escucha
-todos los tópicos de telemetría de los nodos ESP32 registrados en Monitorea.
+todos los tópicos de telemetría de los dispositivos ESP32 registrados en Monitorea.
 
 ──────────────────────────────────────────────────────────────
 TÓPICO ESPERADO (publicado por el ESP32):
 ──────────────────────────────────────────────────────────────
-  monitorea/nodos/<MAC_ADDRESS>/telemetria
+  dispositivos/<MAC_ADDRESS>/telemetria
 
   Donde <MAC_ADDRESS> es la dirección MAC del ESP32 en formato
   AA:BB:CC:DD:EE:FF (mayúsculas, con dos puntos).
@@ -16,7 +16,7 @@ PAYLOAD (JSON):
 ──────────────────────────────────────────────────────────────
   {
     "t": [25.4, 28.1],   ← array de temperaturas, índice = canal
-    "v": [220.5]         ← array de voltajes, índice = canal
+    "v": [220.5]         ← array de tensiones, índice = canal
   }
 
   Los arrays pueden tener cualquier cantidad de elementos según
@@ -27,7 +27,7 @@ CONFIGURACIÓN EN MQTTX (prueba desde escritorio):
   - Host:     broker.emqx.io
   - Port:     8084
   - Protocol: MQTT over WebSocket SSL (WSS)
-  - Topic:    monitorea/nodos/AA:BB:CC:DD:EE:FF/telemetria
+  - Topic:    dispositivos/AA:BB:CC:DD:EE:FF/telemetria
   - Payload:  {"t": [25.4], "v": [220.5]}
 
 VARIABLES DE ENTORNO:
@@ -60,17 +60,17 @@ MQTT_PORT     = int(os.environ.get('MQTT_PORT', '8084'))
 MQTT_USER     = os.environ.get('MQTT_USER', '')
 MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', '')
 
-# Tópico wildcard: captura TODOS los nodos registrados
-MQTT_TOPIC    = 'monitorea/nodos/+/telemetria'
+# Tópico wildcard: captura TODOS los dispositivos registrados
+MQTT_TOPIC    = 'dispositivos/+/telemetria'
 
 API_BASE      = os.environ.get('API_BASE_URL', 'http://127.0.0.1:8000')
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 def _mac_from_topic(topic: str) -> str:
-    """Extrae la MAC del tópico 'monitorea/nodos/<MAC>/telemetria'."""
+    """Extrae la MAC del tópico 'dispositivos/<MAC>/telemetria'."""
     parts = topic.split('/')
-    return parts[2].upper()  # índice 2: AA:BB:CC:DD:EE:FF
+    return parts[1].upper()  # índice 1: AA:BB:CC:DD:EE:FF
 
 
 def on_connect(client, userdata, flags, reason_code, properties):

@@ -248,51 +248,52 @@
     return mac.toLowerCase().replace(/:/g, '');
   }
 
-  // â”€â”€ WebSocket por dispositivo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  function connectWS(mac) {
-    const slug     = macSlug(mac);
-    const dotEl    = document.getElementById('ws-dot-' + slug);
-    const statusEl = document.getElementById('ws-status-' + slug);
-    const proto    = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws       = new WebSocket(`${proto}://${location.host}/ws/telemetria/${mac}/`);
+
+  // WebSocket unico por usuario
+  function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws    = new WebSocket(`${proto}://${location.host}/ws/telemetria/`);
 
     ws.onopen = () => {
-      if (dotEl)    { dotEl.classList.remove('text-secondary', 'text-danger'); dotEl.classList.add('text-success'); }
-      if (statusEl) statusEl.textContent = 'Conectado';
+      document.querySelectorAll('[id^="ws-dot-"]').forEach(el => {
+        el.classList.remove('text-secondary', 'text-danger');
+        el.classList.add('text-success');
+      });
+      document.querySelectorAll('[id^="ws-status-"]').forEach(el => {
+        el.textContent = 'Conectado';
+      });
     };
+
     ws.onclose = () => {
-      if (dotEl)    { dotEl.classList.remove('text-success'); dotEl.classList.add('text-danger'); }
-      if (statusEl) statusEl.textContent = 'Desconectado â€” reintentando...';
-      setTimeout(() => connectWS(mac), 3000);
+      document.querySelectorAll('[id^="ws-dot-"]').forEach(el => {
+        el.classList.remove('text-success');
+        el.classList.add('text-danger');
+      });
+      document.querySelectorAll('[id^="ws-status-"]').forEach(el => {
+        el.textContent = 'Desconectado \u2014 reintentando...';
+      });
+      setTimeout(connectWS, 3000);
     };
+
     ws.onerror = () => ws.close();
 
     ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      const ts  = new Date().toLocaleTimeString();
+      const msg  = JSON.parse(e.data);
+      const slug = macSlug(msg.mac);
+      const ts   = new Date().toLocaleTimeString();
 
-      (msg.t || []).forEach(([canal, valor]) => {
-        const s = `${slug}-temperatura-${canal}`;
-        const el = document.getElementById('val-' + s);
+      (msg.lecturas || []).forEach(({ tipo, canal, valor }) => {
+        const s     = `${slug}-${tipo}-${canal}`;
+        const el    = document.getElementById('val-' + s);
         if (el) el.textContent = parseFloat(valor).toFixed(1);
-        const chart = getOrCreateChart('chart-' + s, '#0d6efd');
-        if (chart) pushToChart(chart, valor, ts);
-      });
-
-      (msg.v || []).forEach(([canal, valor]) => {
-        const s = `${slug}-tension-${canal}`;
-        const el = document.getElementById('val-' + s);
-        if (el) el.textContent = parseFloat(valor).toFixed(1);
-        const chart = getOrCreateChart('chart-' + s, '#198754');
+        const color = tipo === 'temperatura' ? '#0d6efd' : '#198754';
+        const chart = getOrCreateChart('chart-' + s, color);
         if (chart) pushToChart(chart, valor, ts);
       });
     };
   }
 
-  // Iniciar WebSockets para todos los dispositivos registrados
-  [
-    {% for estab in establecimientos %}{% for disp in estab.dispositivos.all %}"{{ disp.mac_address }}",{% endfor %}{% endfor %}
-  ].forEach(mac => connectWS(mac));
+  connectWS();
 
   // â”€â”€ Modal: Agregar Establecimiento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const modalEstabEl = document.getElementById('modalEstablecimiento');

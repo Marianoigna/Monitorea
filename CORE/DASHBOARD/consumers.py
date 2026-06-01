@@ -3,20 +3,27 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 
 class TelemetriaConsumer(AsyncWebsocketConsumer):
-    """WebSocket por dispositivo (MAC). Grupo: telemetria_<MAC_con_guiones>."""
+    """WebSocket por usuario autenticado. Grupo: user_<user_id>.
+    Cada usuario sólo recibe datos de sus propios dispositivos.
+    """
 
     async def connect(self):
-        mac = self.scope['url_route']['kwargs']['mac'].upper()
-        self.group_name = f'telemetria_{mac.replace(":", "_")}'
+        user = self.scope['user']
+        if not user.is_authenticated:
+            await self.close()
+            return
+
+        self.group_name = f'user_{user.id}'
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def send_telemetria(self, event):
         await self.send(text_data=json.dumps({
             'mac': event['mac'],
-            't': event['t'],
-            'v': event['v'],
+            'lecturas': event['lecturas'],
+            'timestamp': event['timestamp'],
         }))

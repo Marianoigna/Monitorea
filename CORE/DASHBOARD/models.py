@@ -46,6 +46,9 @@ class Dispositivo(models.Model):
 TIPO_SENSOR_CHOICES = [
     ('temperatura', 'Temperatura'),
     ('tension',     'Tensión'),
+    ('corriente',   'Corriente'),
+    ('humedad',     'Humedad'),
+    ('presion',     'Presión'),
 ]
 
 
@@ -72,39 +75,22 @@ class SensorConfig(models.Model):
         return f'{self.nombre_personalizado} ({self.tipo_sensor}[{self.canal}])'
 
 
-class Temperatura(models.Model):
+class Telemetria(models.Model):
+    """Lectura genérica de cualquier tipo de sensor."""
     dispositivo = models.ForeignKey(
         Dispositivo,
         on_delete=models.CASCADE,
-        related_name='lecturas_temperatura',
+        related_name='telemetrias',
     )
+    tipo_sensor = models.CharField(max_length=20, choices=TIPO_SENSOR_CHOICES)
     canal = models.IntegerField(default=0)
     valor = models.FloatField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-timestamp']
-        verbose_name = 'Temperatura'
-        verbose_name_plural = 'Temperaturas'
+        verbose_name = 'Telemetría'
+        verbose_name_plural = 'Telemetrías'
 
     def __str__(self):
-        return f'{self.dispositivo.mac_address}[t{self.canal}]: {self.valor}°C @ {self.timestamp}'
-
-
-class Voltaje(models.Model):
-    dispositivo = models.ForeignKey(
-        Dispositivo,
-        on_delete=models.CASCADE,
-        related_name='lecturas_voltaje',
-    )
-    canal = models.IntegerField(default=0)
-    valor = models.FloatField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-timestamp']
-        verbose_name = 'Voltaje'
-        verbose_name_plural = 'Voltajes'
-
-    def __str__(self):
-        return f'{self.dispositivo.mac_address}[v{self.canal}]: {self.valor}V @ {self.timestamp}'
+        return f'{self.dispositivo.mac_address}[{self.tipo_sensor}:{self.canal}]: {self.valor} @ {self.timestamp}'

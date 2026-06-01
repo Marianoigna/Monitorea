@@ -12,7 +12,7 @@ from rest_framework import status
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
-from .models import Establecimiento, Dispositivo, Temperatura, Voltaje
+from .models import Establecimiento, Dispositivo, Telemetria
 
 logger = logging.getLogger(__name__)
 
@@ -104,33 +104,42 @@ class TelemetriaAPIView(APIView):
     """
     POST /api/telemetria/<mac>/
     Payload: {"t": [25.4, 28.1], "v": [220.5]}
-    Registra lecturas y notifica por WebSocket al grupo del dispositivo.
+    Registra lecturas en Telemetria y notifica por WebSocket al grupo del usuario dueño del dispositivo.
     """
 
     def post(self, request, mac):
         mac = mac.upper()
         try:
-            dispositivo = Dispositivo.objects.get(mac_address=mac)
+            dispositivo = Dispositivo.objects.select_related(
+                'establecimiento__usuario'
+            ).get(mac_address=mac)
         except Dispositivo.DoesNotExist:
             return Response({'error': 'Dispositivo no registrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         t_values = request.data.get('t', [])
         v_values = request.data.get('v', [])
 
-        for canal, valor in enumerate(t_values):
-            Temperatura.objects.create(dispositivo=dispositivo, canal=canal, valor=valor)
-        for canal, valor in enumerate(v_values):
-            Voltaje.objects.create(dispositivo=dispositivo, canal=canal, valor=valor)
+        from datetime import datetime, timezone as dt_timezone
+        timestamp = datetime.now(dt_timezone.utc).isoformat()
 
-        group = f'telemetria_{mac.replace(":", "_")}'
+        lecturas = []
+        for canal, valor in enumerate(t_values):
+            Telemetria.objects.create(dispositivo=dispositivo, tipo_sensor='temperatura', canal=canal, valor=valor)
+            lecturas.append({'tipo': 'temperatura', 'canal': canal, 'valor': valor})
+        for canal, valor in enumerate(v_values):
+            Telemetria.objects.create(dispositivo=dispositivo, tipo_sensor='tension', canal=canal, valor=valor)
+            lecturas.append({'tipo': 'tension', 'canal': canal, 'valor': valor})
+
+        usuario = dispositivo.establecimiento.usuario
+        group = f'user_{usuario.id}'
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             group,
             {
                 'type': 'send_telemetria',
                 'mac': mac,
-                't': list(enumerate(t_values)),
-                'v': list(enumerate(v_values)),
+                'lecturas': lecturas,
+                'timestamp': timestamp,
             }
         )
         return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)

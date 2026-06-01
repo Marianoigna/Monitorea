@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Establecimiento, Dispositivo, SensorConfig, Temperatura, Voltaje
+from .models import Establecimiento, Dispositivo, SensorConfig, Telemetria
 
 
 @admin.register(Establecimiento)
@@ -23,15 +23,8 @@ class SensorConfigAdmin(admin.ModelAdmin):
     search_fields = ('nombre_personalizado', 'dispositivo__nombre', 'dispositivo__mac_address')
 
 
-@admin.register(Temperatura)
-class TemperaturaAdmin(admin.ModelAdmin):
-    list_display = ('dispositivo', 'canal', 'valor', 'timestamp')
-    list_filter  = ('dispositivo',)
-    ordering     = ('-timestamp',)
-
-
-@admin.register(Voltaje)
-class VoltajeAdmin(admin.ModelAdmin):
-    list_display = ('dispositivo', 'canal', 'valor', 'timestamp')
-    list_filter  = ('dispositivo',)
+@admin.register(Telemetria)
+class TelemetriaAdmin(admin.ModelAdmin):
+    list_display = ('dispositivo', 'tipo_sensor', 'canal', 'valor', 'timestamp')
+    list_filter  = ('tipo_sensor', 'dispositivo')
     ordering     = ('-timestamp',)
