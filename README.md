@@ -9,7 +9,9 @@
 ╠══════════════════════╦═══════════════════════════════════════════════╣
 ║  ✅  Landing page     ║  Página pública de bienvenida en /           ║
 ║  ✅  Autenticación    ║  Login · Registro · Logout · CustomUser       ║
-║  ✅  Dashboard RT     ║  Temperatura + Voltaje en tiempo real         ║
+║  ✅  Multiusuario     ║  Sesiones aisladas por usuario (WebSocket)    ║
+║  ✅  Dashboard RT     ║  Sensores genéricos en tiempo real            ║
+║  ✅  Telemetría gen.  ║  Temp · Tensión · Corriente · Humedad · Pres. ║
 ║  ✅  MQTT bridge      ║  Suscriptor autónomo → API REST               ║
 ║  ✅  Control acceso   ║  @requiere_premium · redirect a planes        ║
 ║  ✅  Página de planes ║  Vista intermediaria con cards Gratis/Premium ║
@@ -20,6 +22,384 @@
 ║  🔄  PostgreSQL       ║  SQLite en dev → Postgres en producción       ║
 ╚══════════════════════╩═══════════════════════════════════════════════╝
 ```
+
+---
+
+## Arquitectura multiusuario
+
+Cada usuario tiene su sesión completamente aislada. Los datos de los dispositivos de un usuario **nunca son visibles** para otro usuario, tanto en la base de datos como en el WebSocket en tiempo real.
+
+```
+  Usuario A (Mariano)                    Usuario B (Marcelo)
+  ─────────────────────                  ─────────────────────
+  Establecimiento: Local 1               Establecimiento: Local 1
+  Dispositivo: AA:BB:CC:11:22:33         Dispositivo: DD:EE:FF:44:55:66
+  Sensor: Temp. Cámara Fría              Sensor: Tensión Fase R
+        │                                       │
+        │  MQTT topic:                          │  MQTT topic:
+        │  dispositivos/AA:BB:CC:.../telemetria │  dispositivos/DD:EE:FF:.../telemetria
+        │                                       │
+        ▼                                       ▼
+  ┌─────────────────┐                   ┌─────────────────┐
+  │  API Django     │                   │  API Django     │
+  │  POST /api/     │                   │  POST /api/     │
+  │  telemetria/    │                   │  telemetria/    │
+  │  AA:BB:CC.../   │                   │  DD:EE:FF.../   │
+  └────────┬────────┘                   └────────┬────────┘
+           │  resuelve propietario               │  resuelve propietario
+           │  dispositivo → estab → usuario      │  dispositivo → estab → usuario
+           ▼                                     ▼
+  group_send("user_1")                  group_send("user_2")
+           │                                     │
+           ▼                                     ▼
+  ┌─────────────────┐                   ┌─────────────────┐
+  │  WS: user_1     │   ✗ NO CRUZA ✗   │  WS: user_2     │
+  │  Dashboard      │ ←───────────────→ │  Dashboard      │
+  │  Mariano        │                   │  Marcelo        │
+  └─────────────────┘                   └─────────────────┘
+```
+
+---
+
+## Modelo de datos
+
+```
+  CustomUser
+  ┌─────────────────────────┐
+  │ id · username · empresa │
+  │ is_premium              │
+  └────────────┬────────────┘
+               │ 1
+               │ tiene muchos
+               ▼ N
+  Establecimiento
+  ┌──────────────────────────┐
+  │ id · nombre              │
+  │ usuario (FK)             │
+  └────────────┬─────────────┘
+               │ 1
+               │ tiene muchos
+               ▼ N
+  Dispositivo
+  ┌─────────────────────────────────┐
+  │ id · nombre · mac_address (unique)│
+  │ establecimiento (FK)            │
+  └──────────┬──────────────────────┘
+             │ 1                  │ 1
+             │ tiene muchos       │ tiene muchos
+             ▼ N                  ▼ N
+  SensorConfig              Telemetria
+  ┌──────────────────┐      ┌──────────────────────────┐
+  │ tipo_sensor      │      │ tipo_sensor              │
+  │ canal            │      │   temperatura            │
+  │ nombre_personal. │      │   tension                │
+  └──────────────────┘      │   corriente              │
+                            │   humedad                │
+  (configuración estática)  │   presion                │
+                            │ canal · valor · timestamp│
+                            └──────────────────────────┘
+
+                            (lecturas en tiempo real)
+```
+
+---
+
+## Flujo de datos completo
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        FUENTES DE DATOS                             │
+│                                                                     │
+│   [Sensor físico ESP32]        [MQTTX (simulador escritorio)]       │
+│            │                              │                         │
+│            └──────────────┬───────────────┘                         │
+│                           │  MQTT sobre WebSocket SSL               │
+│                           │  broker.emqx.io : 8084                  │
+│                           │  topic: dispositivos/<MAC>/telemetria   │
+│                           │  payload: {"t": [25.4], "v": [220.5]}   │
+└───────────────────────────┼─────────────────────────────────────────┘
+                            │
+                            ▼
+               ┌────────────────────────┐
+               │   mqtt_subscriber.py   │  ← proceso separado
+               │   (puente MQTT → HTTP) │    python mqtt_subscriber.py
+               │                        │
+               │  1. extrae MAC del     │
+               │     topic              │
+               │  2. POST a la API      │
+               │  3. verifica alertas   │
+               └───────────┬────────────┘
+                           │  POST /api/telemetria/<MAC>/
+                           │  body: {"t": [...], "v": [...]}
+                           ▼
+               ┌────────────────────────┐
+               │   TelemetriaAPIView    │  ← Django REST Framework
+               │   (DASHBOARD/views.py) │
+               │                        │
+               │  1. busca Dispositivo  │
+               │     por MAC            │
+               │  2. guarda Telemetria  │
+               │  3. resuelve usuario   │
+               │     dueño              │
+               │  4. group_send →       │
+               │     "user_<id>"        │
+               └───────┬────────────────┘
+                       │
+               ┌───────┴────────────────┐
+               │                        │
+               ▼                        ▼
+    ┌────────────────┐       ┌──────────────────────┐
+    │   SQLite3      │       │   Django Channels     │
+    │  (Telemetria)  │       │   InMemoryChannelLayer│
+    │  persistencia  │       │   group: "user_<id>"  │
+    └────────────────┘       └──────────┬────────────┘
+                                        │  WebSocket
+                                        │  ws://host/ws/telemetria/
+                                        ▼
+                             ┌──────────────────────┐
+                             │   TelemetriaConsumer  │
+                             │   (consumers.py)      │
+                             │                       │
+                             │  - verifica auth      │
+                             │  - grupo: user_<id>   │
+                             │  - solo recibe datos  │
+                             │    de SUS dispositivos│
+                             └──────────┬────────────┘
+                                        │  JSON:
+                                        │  { mac, lecturas, timestamp }
+                                        ▼
+                             ┌──────────────────────┐
+                             │   dashboard.html      │
+                             │   (JS + Chart.js)     │
+                             │                       │
+                             │  connectWS() abre     │
+                             │  UN solo WS por sesión│
+                             │  actualiza valor y    │
+                             │  gráfico en tiempo    │
+                             │  real                 │
+                             └──────────────────────┘
+```
+
+---
+
+## Modelo de negocio y niveles de acceso
+
+```
+╔═════════════════════════════════════════════════════════════════════════╗
+║                         NIVELES DE USUARIO                             ║
+╠══════════════════════════════╦══════════════════════════════════════════╣
+║     ANÓNIMO (sin login)      ║  GRATUITO (logueado, sin plan activo)   ║
+║                              ║                                         ║
+║  ✅ Landing page              ║  ✅ Dashboard tiempo real               ║
+║  ✅ Botón "Iniciar sesión"    ║  ✅ Ver sus sensores en vivo            ║
+║  ❌ Todo lo demás             ║  ❌ Reportes históricos                 ║
+║                              ║  ❌ Configurar alertas                  ║
+╠══════════════════════════════╩═════════════════════╦════════════════════╣
+║               PREMIUM (suscripción activa)         ║                   ║
+║                                                    ║                   ║
+║  ✅ Dashboard tiempo real                          ║                   ║
+║  ✅ Reportes históricos (filtros por fecha/sensor) ║                   ║
+║  ✅ Configurar alertas (umbrales + notificaciones) ║                   ║
+║  ✅ Notificaciones SMS/email vía Twilio            ║                   ║
+╚════════════════════════════════════════════════════╩════════════════════╝
+```
+
+### Flujo de acceso completo
+
+```
+  ┌─────────────────┐
+  │   / (Landing)   │  ← página pública, sin login
+  └────────┬────────┘
+           │  click "Iniciar sesión"
+           ▼
+  ┌─────────────────┐
+  │ /accounts/login │
+  └────────┬────────┘
+           │  credenciales OK
+           ▼
+  ┌─────────────────┐
+  │  /dashboard/    │  ← dashboard tiempo real
+  └────────┬────────┘
+           │
+     ┌─────┴──────┐
+     │  click en  │
+     │  Reportes  │
+     │  o Alertas │
+     └─────┬──────┘
+           │
+     ┌─────▼──────────────────────────────┐
+     │    @requiere_premium               │
+     │    ¿tiene_premium_activo()?        │
+     └─────┬──────────────────────────────┘
+           │
+     ┌─────┴──────┐          ┌──────────────┐
+     │    SÍ      │          │      NO      │
+     │  (premium) │          │  (gratuito)  │
+     └─────┬──────┘          └──────┬───────┘
+           │                        │
+           ▼                        ▼
+   Vista solicitada       /suscripciones/planes/
+   (Reportes / Alertas)   ┌────────────────────┐
+                          │ GRATUITO  PREMIUM  │
+                          │  $0        $4.999  │
+                          │ (actual) [Contratar]│
+                          └─────────┬──────────┘
+                                    │  click "Contratar ahora"
+                                    ▼
+                          /suscripciones/checkout-prueba/
+                                    │
+                                    ▼
+                          ┌──────────────────────┐
+                          │  MercadoPago         │
+                          │  Checkout Pro (TEST) │
+                          └──────────────────────┘
+```
+
+### Control de acceso en el código
+
+```python
+from SUSCRIPCIONES.decorators import requiere_premium
+
+@requiere_premium          # ← una sola línea bloquea la vista
+def mi_vista(request):
+    ...
+```
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|------|------------|
+| Backend | Django 6 + Django REST Framework |
+| Servidor ASGI | Daphne |
+| WebSockets | Django Channels + InMemoryChannelLayer |
+| MQTT | paho-mqtt (WSS · broker.emqx.io:8084) |
+| Base de datos | SQLite3 (dev) → PostgreSQL (producción) |
+| Frontend | HTML + CSS + JavaScript vanilla + Chart.js |
+| Pagos | MercadoPago SDK (Checkout Pro) |
+| Notificaciones | Twilio (WhatsApp / SMS) |
+| Deploy | Render.com |
+
+---
+
+## URLs disponibles
+
+| URL | Descripción | Acceso |
+|-----|-------------|--------|
+| `/` | Landing page | Público |
+| `/dashboard/` | Dashboard tiempo real | Login requerido |
+| `/accounts/login/` | Iniciar sesión | Público |
+| `/accounts/registro/` | Registro | Público |
+| `/accounts/logout/` | Cerrar sesión | Login requerido |
+| `/admin/` | Panel de administración Django | Superusuario |
+| `/api/telemetria/<mac>/` | Recibir telemetría (POST) | Público (interno) |
+| `/api/establecimientos/crear/` | Crear establecimiento (POST) | Login requerido |
+| `/api/dispositivos/crear/` | Crear dispositivo (POST) | Login requerido |
+| `/suscripciones/planes/` | Página de planes | Login requerido |
+| `/alertas/` | Configuración de alertas | Premium |
+| `/reportes/` | Reportes históricos | Premium |
+| `ws://host/ws/telemetria/` | WebSocket tiempo real | Login requerido |
+
+---
+
+## Estructura del proyecto
+
+```
+Monitorea/                          ← raíz del repositorio
+│
+├── CORE/                           ← todo el código Django activo
+│   ├── manage.py
+│   ├── mqtt_subscriber.py          ← proceso puente MQTT → API REST
+│   ├── alertas.py                  ← alertas WhatsApp via Twilio
+│   ├── db.sqlite3                  ← base de datos local
+│   │
+│   ├── MONITOREA/                  ── ⚙️  configuración del proyecto ──
+│   │   ├── settings.py             ← apps, BD, channels, static, dotenv
+│   │   ├── urls.py                 ← rutas raíz del proyecto
+│   │   ├── asgi.py                 ← entry point ASGI (HTTP + WebSocket)
+│   │   └── wsgi.py
+│   │
+│   ├── ACCOUNTS/                   ── 🔐 autenticación ── ✅ funcional
+│   │   ├── models.py               ← CustomUser (is_premium, premium_until)
+│   │   ├── views.py                ← login · logout · register · set_theme
+│   │   ├── forms.py                ← LoginForm · RegisterForm
+│   │   └── templates/ACCOUNTS/
+│   │       ├── login.html
+│   │       └── register.html
+│   │
+│   ├── SUSCRIPCIONES/              ── 💳 pagos y control de acceso ── ✅ funcional
+│   │   ├── models.py               ← Plan · Suscripcion · Pago
+│   │   ├── decorators.py           ← @requiere_premium
+│   │   ├── views.py                ← planes · checkout_pro · webhook
+│   │   └── templates/SUSCRIPCIONES/
+│   │       └── planes.html
+│   │
+│   ├── DASHBOARD/                  ── 📊 tiempo real multiusuario ── ✅ funcional
+│   │   ├── models.py               ← Establecimiento · Dispositivo
+│   │   │                              SensorConfig · Telemetria (unificado)
+│   │   ├── views.py                ← landing · dashboard · TelemetriaAPIView
+│   │   ├── consumers.py            ← TelemetriaConsumer (grupo por user_id)
+│   │   ├── serializers.py          ← TelemetriaSerializer
+│   │   ├── routing.py              ← ws/telemetria/
+│   │   ├── urls.py                 ← / · /dashboard/ · /api/...
+│   │   └── templates/
+│   │       ├── base.html           ← template base global
+│   │       └── DASHBOARD/
+│   │           ├── landing.html
+│   │           └── dashboard.html  ← UI tiempo real + Chart.js
+│   │
+│   ├── REPORTES/                   ── 📈 históricos  🔒 premium ── 🔄 pendiente
+│   └── ALERTAS/                    ── 🔔 alertas     🔒 premium ── 🔄 pendiente
+│
+├── .env                            ← credenciales (NO en git)
+├── venv/                           ← entorno virtual (NO en git)
+├── requirements.txt
+├── levantar_servidor.bat           ← inicio rápido Windows
+├── Dockerfile
+├── docker-compose.yml
+└── render.yaml                     ← configuración deploy Render.com
+```
+
+---
+
+## Cómo levantar el proyecto localmente
+
+```bash
+# 1. Activar entorno virtual
+venv\Scripts\activate          # Windows
+source venv/bin/activate       # Linux/Mac
+
+# 2. Instalar dependencias
+pip install -r requirements.txt
+
+# 3. Aplicar migraciones
+cd CORE
+python manage.py migrate
+
+# 4. Crear superusuario (primera vez)
+python manage.py createsuperuser
+
+# 5. Levantar servidor Django (en una terminal)
+python manage.py runserver
+
+# 6. Levantar subscriber MQTT (en otra terminal)
+python mqtt_subscriber.py
+```
+
+### Simular datos con MQTTX
+
+| Campo | Valor |
+|-------|-------|
+| Host | `broker.emqx.io` |
+| Port | `8084` |
+| Protocol | MQTT over WebSocket SSL (WSS) |
+| Topic | `dispositivos/AA:BB:CC:11:22:33/telemetria` |
+| Payload | `{"t": [5.2], "v": [220.5]}` |
+
+> Los tipos soportados en el payload son: `t` (temperatura), `v` (tensión).  
+> Próximamente: `c` (corriente), `h` (humedad), `p` (presión).
+
 
 ---
 
