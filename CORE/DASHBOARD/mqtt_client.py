@@ -2,85 +2,108 @@
 mqtt_client.py — Suscriptor MQTT integrado en Django
 =====================================================
 Corre en un hilo de fondo dentro del mismo proceso Daphne/ASGI.
-Recibe mensajes MQTT y los persiste directamente con el ORM de Django,
-luego notifica a los clientes WebSocket vía Channels (sin llamadas HTTP).
+Recibe mensajes MQTT, los persiste con el ORM de Django y notifica
+a los clientes WebSocket vía Channels.
+
+Tópico esperado:
+  dispositivos/<MAC_ADDRESS>/telemetria
+
+Payload JSON:
+  {"t": [25.4, 28.1], "v": [220.5]}
 
 Variables de entorno opcionales:
-  MQTT_BROKER        broker MQTT (default: broker.emqx.io)
-  MQTT_PORT          puerto WebSocket SSL (default: 8084)
-  MQTT_TOPIC_TEMP    topic de temperatura (default: temperatura_prueba)
-  MQTT_TOPIC_VOLT    topic de voltaje     (default: voltaje_prueba)
-  MQTT_USER          usuario (default: vacío)
-  MQTT_PASSWORD      contraseña (default: vacío)
+  MQTT_BROKER    broker MQTT (default: broker.emqx.io)
+  MQTT_PORT      puerto WebSocket SSL (default: 8084)
+  MQTT_USER      usuario (default: vacío)
+  MQTT_PASSWORD  contraseña (default: vacío)
 """
 
 import json
 import os
 import threading
+from datetime import datetime, timezone as dt_timezone
 
 import paho.mqtt.client as mqtt
 from asgiref.sync import async_to_sync
 
 # ── Configuración ──────────────────────────────────────────────────────────────
-MQTT_BROKER     = os.environ.get('MQTT_BROKER',     'broker.emqx.io')
-MQTT_PORT       = int(os.environ.get('MQTT_PORT',   '8084'))
-MQTT_TOPIC_TEMP = os.environ.get('MQTT_TOPIC_TEMP', 'temperatura_prueba')
-MQTT_TOPIC_VOLT = os.environ.get('MQTT_TOPIC_VOLT', 'voltaje_prueba')
-MQTT_USER       = os.environ.get('MQTT_USER',       '')
-MQTT_PASSWORD   = os.environ.get('MQTT_PASSWORD',   '')
+MQTT_BROKER   = os.environ.get('MQTT_BROKER',   'broker.emqx.io')
+MQTT_PORT     = int(os.environ.get('MQTT_PORT', '8084'))
+MQTT_TOPIC    = 'dispositivos/+/telemetria'
+MQTT_USER     = os.environ.get('MQTT_USER',     '')
+MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', '')
 # ──────────────────────────────────────────────────────────────────────────────
 
 _thread: threading.Thread | None = None
 
 
+def _mac_from_topic(topic: str) -> str:
+    """Extrae la MAC del tópico 'dispositivos/<MAC>/telemetria'."""
+    return topic.split('/')[1].upper()
+
+
 def _on_connect(client, userdata, flags, reason_code, properties):
     print(f'[MQTT] Conectado a {MQTT_BROKER}:{MQTT_PORT}')
-    client.subscribe(MQTT_TOPIC_TEMP)
-    client.subscribe(MQTT_TOPIC_VOLT)
-    print(f'[MQTT] Suscrito a: {MQTT_TOPIC_TEMP}, {MQTT_TOPIC_VOLT}')
+    client.subscribe(MQTT_TOPIC)
+    print(f'[MQTT] Suscrito a: {MQTT_TOPIC}')
 
 
 def _on_message(client, userdata, msg):
     # Imports diferidos para evitar ciclos en el arranque de Django
     from channels.layers import get_channel_layer
-    from DASHBOARD.models import Temperatura, Voltaje
+    from DASHBOARD.models import Dispositivo, Telemetria
 
     topic   = msg.topic
     payload = msg.payload.decode('utf-8').strip()
-    is_temp = (topic == MQTT_TOPIC_TEMP)
 
     try:
-        try:
-            data      = json.loads(payload)
-            valor     = float(data.get('valor', data))
-            sensor_id = data.get('sensor_id', 'sensor_01' if is_temp else 'voltaje_01')
-        except (json.JSONDecodeError, TypeError):
-            valor     = float(payload)
-            sensor_id = 'sensor_01' if is_temp else 'voltaje_01'
+        mac  = _mac_from_topic(topic)
+        data = json.loads(payload)
+    except (IndexError, json.JSONDecodeError) as e:
+        print(f'[MQTT] ✘ Tópico o payload inválido: {topic} — {e}')
+        return
 
-        channel_layer = get_channel_layer()
+    try:
+        dispositivo = Dispositivo.objects.select_related(
+            'establecimiento__usuario'
+        ).get(mac_address=mac)
+    except Dispositivo.DoesNotExist:
+        print(f'[MQTT] ✘ Dispositivo no registrado: {mac}')
+        return
 
-        if is_temp:
-            registro = Temperatura.objects.create(valor=valor, sensor_id=sensor_id)
-            async_to_sync(channel_layer.group_send)('temperatura', {
-                'type':      'send_temperatura',
-                'sensor_id': registro.sensor_id,
-                'valor':     registro.valor,
-                'timestamp': registro.timestamp.isoformat(),
-            })
-            print(f'[MQTT] ✔ temperatura: {sensor_id} → {valor}°C')
-        else:
-            registro = Voltaje.objects.create(valor=valor, sensor_id=sensor_id)
-            async_to_sync(channel_layer.group_send)('voltaje', {
-                'type':      'send_voltaje',
-                'sensor_id': registro.sensor_id,
-                'valor':     registro.valor,
-                'timestamp': registro.timestamp.isoformat(),
-            })
-            print(f'[MQTT] ✔ voltaje:     {sensor_id} → {valor}V')
+    t_values = data.get('t', [])
+    v_values = data.get('v', [])
+    timestamp = datetime.now(dt_timezone.utc).isoformat()
 
-    except Exception as e:
-        print(f'[MQTT] ✘ Error procesando "{topic}" payload={payload!r}: {e}')
+    lecturas = []
+    for canal, valor in enumerate(t_values):
+        Telemetria.objects.create(
+            dispositivo=dispositivo, tipo_sensor='temperatura', canal=canal, valor=valor
+        )
+        lecturas.append({'tipo': 'temperatura', 'canal': canal, 'valor': valor})
+
+    for canal, valor in enumerate(v_values):
+        Telemetria.objects.create(
+            dispositivo=dispositivo, tipo_sensor='tension', canal=canal, valor=valor
+        )
+        lecturas.append({'tipo': 'tension', 'canal': canal, 'valor': valor})
+
+    if not lecturas:
+        return
+
+    usuario = dispositivo.establecimiento.usuario
+    group   = f'user_{usuario.id}'
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        group,
+        {
+            'type':      'send_telemetria',
+            'mac':       mac,
+            'lecturas':  lecturas,
+            'timestamp': timestamp,
+        }
+    )
+    print(f'[MQTT] ✔ {mac} → t={t_values}  v={v_values}')
 
 
 def _run():
@@ -98,7 +121,7 @@ def _run():
             print(f'[MQTT] Conectando a {MQTT_BROKER}:{MQTT_PORT}...')
             client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
             client.loop_forever()
-            retry_delay = 5  # restablecer tras conexión exitosa
+            retry_delay = 5
         except Exception as e:
             print(f'[MQTT] Error de conexión: {type(e).__name__}: {e}')
             print(f'[MQTT] Reintentando en {retry_delay}s...')
