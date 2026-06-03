@@ -365,6 +365,16 @@ Monitorea/                          ← raíz del repositorio
 
 ## Cómo levantar el proyecto localmente
 
+### ▶ Opción rápida — Windows
+
+Hacé doble clic en `levantar_servidor.bat`.  
+Abre una ventana de consola con Django + MQTT integrado corriendo en `http://127.0.0.1:8000/`.
+
+> El bat setea `MQTT_AUTOSTART=1` antes de lanzar el proceso, por lo que el suscriptor MQTT
+> arranca automáticamente junto con Daphne (sin necesidad de una terminal separada).
+
+### ▶ Opción manual — cualquier SO
+
 ```bash
 # 1. Activar entorno virtual
 venv\Scripts\activate          # Windows
@@ -380,11 +390,10 @@ python manage.py migrate
 # 4. Crear superusuario (primera vez)
 python manage.py createsuperuser
 
-# 5. Levantar servidor Django (en una terminal)
-python manage.py runserver
-
-# 6. Levantar subscriber MQTT (en otra terminal)
-python mqtt_subscriber.py
+# 5. Levantar servidor ASGI con MQTT integrado
+set MQTT_AUTOSTART=1           # Windows (CMD)
+export MQTT_AUTOSTART=1        # Linux/Mac
+daphne -b 127.0.0.1 -p 8000 MONITOREA.asgi:application
 ```
 
 ### Simular datos con MQTTX
@@ -395,7 +404,7 @@ python mqtt_subscriber.py
 | Port | `8084` |
 | Protocol | MQTT over WebSocket SSL (WSS) |
 | Topic | `dispositivos/AA:BB:CC:11:22:33/telemetria` |
-| Payload | `{"t": [5.2], "v": [220.5]}` |
+| Payload | `     
 
 > Los tipos soportados en el payload son: `t` (temperatura), `v` (tensión).  
 > Próximamente: `c` (corriente), `h` (humedad), `p` (presión).

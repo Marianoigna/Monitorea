@@ -10,7 +10,8 @@ echo ============================================
 
 echo.
 echo [1/1] Iniciando Django + MQTT (daphne)...
-start "Monitorea - Django Server" cmd /k cd /d "%~dp0CORE" ^& call "%~dp0venv\Scripts\activate.bat" ^& set MQTT_AUTOSTART=1 ^& daphne -b 127.0.0.1 -p 8000 MONITOREA.asgi:application
+set MQTT_AUTOSTART=1
+start "Monitorea - Django Server" cmd /k cd /d "%~dp0CORE" ^& "%~dp0venv\Scripts\daphne.exe" -b 127.0.0.1 -p 8000 MONITOREA.asgi:application
 
 echo.
 echo ============================================
