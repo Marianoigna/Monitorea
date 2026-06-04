@@ -1,0 +1,464 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Monitorea â€” Reportes{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  .stat-card .stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+  .stat-card .stat-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  {# â”€â”€ Header â”€â”€ #}
+  <div class="d-flex align-items-center mb-4 gap-2">
+    <i class="bi bi-bar-chart-line fs-4 text-primary"></i>
+    <h4 class="fw-bold mb-0">Reportes histÃ³ricos</h4>
+    <span class="text-body-secondary small fw-normal">{{ request.user.empresa }}</span>
+  </div>
+
+  {# â”€â”€ Sin dispositivos â”€â”€ #}
+  {% if not dispositivos %}
+  <div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
+    <i class="bi bi-cpu fs-1 text-body-secondary mb-3"></i>
+    <h5 class="fw-semibold mb-1">No tenÃ©s dispositivos registrados</h5>
+    <p class="text-body-secondary mb-4">RegistrÃ¡ un establecimiento y dispositivo desde el Dashboard para empezar.</p>
+    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary">
+      <i class="bi bi-speedometer2 me-1"></i>Ir al Dashboard
+    </a>
+  </div>
+  {% else %}
+
+  {# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+     FORMULARIO DE FILTROS
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• #}
+  <div class="card border mb-4">
+    <div class="card-header d-flex align-items-center gap-2 py-2">
+      <i class="bi bi-funnel text-primary"></i>
+      <span class="fw-semibold">Filtros</span>
+    </div>
+    <div class="card-body">
+      <form id="form-reporte" class="row g-3 align-items-end">
+        {% csrf_token %}
+
+        {# â”€â”€ Dispositivo â”€â”€ #}
+        <div class="col-12 col-md-4 col-lg-3">
+          <label for="sel-dispositivo" class="form-label small fw-semibold">Dispositivo</label>
+          <select id="sel-dispositivo" class="form-select" required>
+            <option value="">â€” SeleccionÃ¡ un dispositivo â€”</option>
+            {% for disp in dispositivos %}
+            <option value="{{ disp.mac_address }}"
+                    data-sensores='[{% for s in disp.sensores.all %}{"tipo":"{{ s.tipo_sensor }}","canal":{{ s.canal }},"nombre":"{{ s.nombre_personalizado }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+              {{ disp.establecimiento.nombre }} â€” {{ disp.nombre }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# â”€â”€ Sensor (dinÃ¡mico) â”€â”€ #}
+        <div class="col-12 col-md-4 col-lg-3">
+          <label for="sel-sensor" class="form-label small fw-semibold">Sensor</label>
+          <select id="sel-sensor" class="form-select" required disabled>
+            <option value="">â€” Primero elegÃ­ un dispositivo â€”</option>
+          </select>
+        </div>
+
+        {# â”€â”€ Fecha Inicio â”€â”€ #}
+        <div class="col-6 col-md-2">
+          <label for="inp-desde" class="form-label small fw-semibold">Fecha Inicio</label>
+          <input type="date" id="inp-desde" class="form-control" required>
+        </div>
+
+        {# â”€â”€ Fecha Fin â”€â”€ #}
+        <div class="col-6 col-md-2">
+          <label for="inp-hasta" class="form-label small fw-semibold">Fecha Fin</label>
+          <input type="date" id="inp-hasta" class="form-control" required>
+        </div>
+
+        {# â”€â”€ Acciones â”€â”€ #}
+        <div class="col-12 col-lg-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-fill">
+            <i class="bi bi-graph-up me-1"></i>Generar Reporte
+          </button>
+          <button type="button" id="btn-limpiar" class="btn btn-outline-secondary" title="Limpiar filtros">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  {# â”€â”€ Spinner â”€â”€ #}
+  <div id="spinner" class="d-none text-center py-5">
+    <div class="spinner-border text-primary" role="status" style="width:2.5rem;height:2.5rem;">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="text-body-secondary mt-3 small">Generando reporteâ€¦</p>
+  </div>
+
+  {# â”€â”€ Error â”€â”€ #}
+  <div id="panel-error" class="alert alert-warning alert-dismissible d-none" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <span id="msg-error"></span>
+    <button type="button" class="btn-close" onclick="this.closest('.alert').classList.add('d-none')"></button>
+  </div>
+
+  {# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+     LAYOUT DE RESULTADOS  (col-md-9 grÃ¡fico | col-md-3 stats)
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• #}
+  <div id="panel-resultados" class="d-none">
+
+    {# TÃ­tulo del reporte activo #}
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+      <i class="bi bi-bar-chart-fill text-primary"></i>
+      <span id="lbl-resumen" class="fw-semibold"></span>
+      <span id="badge-total" class="badge bg-primary-subtle text-primary fw-normal"></span>
+    </div>
+
+    <div class="row g-4">
+
+      {# â”€â”€ Columna izquierda: grÃ¡fico â”€â”€ #}
+      <div class="col-md-9">
+        <div class="card border h-100">
+          <div class="card-header d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-graph-up text-primary"></i>
+            <span class="fw-semibold">EvoluciÃ³n temporal</span>
+          </div>
+          <div class="card-body">
+            <canvas id="chart-reporte"></canvas>
+          </div>
+        </div>
+      </div>
+
+      {# â”€â”€ Columna derecha: estadÃ­sticas + CSV â”€â”€ #}
+      <div class="col-md-3 d-flex flex-column gap-3">
+
+        {# MÃ¡ximo #}
+        <div class="card border stat-card text-center">
+          <div class="card-body py-3">
+            <p class="stat-label text-body-secondary mb-1">Valor MÃ¡ximo</p>
+            <p class="stat-value text-danger mb-0" id="stat-max">â€”</p>
+            <small id="stat-max-ts" class="text-body-secondary"></small>
+          </div>
+        </div>
+
+        {# MÃ­nimo #}
+        <div class="card border stat-card text-center">
+          <div class="card-body py-3">
+            <p class="stat-label text-body-secondary mb-1">Valor MÃ­nimo</p>
+            <p class="stat-value text-primary mb-0" id="stat-min">â€”</p>
+            <small id="stat-min-ts" class="text-body-secondary"></small>
+          </div>
+        </div>
+
+        {# Promedio #}
+        <div class="card border stat-card text-center">
+          <div class="card-body py-3">
+            <p class="stat-label text-body-secondary mb-1">Promedio</p>
+            <p class="stat-value text-success mb-0" id="stat-avg">â€”</p>
+            <small id="stat-unidad" class="text-body-secondary"></small>
+          </div>
+        </div>
+
+        {# Descargar CSV #}
+        <button id="btn-exportar" class="btn btn-success w-100">
+          <i class="bi bi-filetype-csv me-2"></i>Descargar CSV
+        </button>
+
+      </div>
+      {# /col-md-3 #}
+
+    </div>
+    {# /row #}
+
+    {# â”€â”€ Tabla de lecturas â”€â”€ #}
+    <div class="card border mt-4">
+      <div class="card-header d-flex align-items-center gap-2 py-2">
+        <i class="bi bi-table text-primary"></i>
+        <span class="fw-semibold">Detalle de lecturas</span>
+        <span id="badge-tabla" class="badge bg-secondary-subtle text-secondary fw-normal ms-auto"></span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+          <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th class="px-3">Timestamp</th>
+                <th class="text-end pe-3">Valor</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {# /panel-resultados #}
+
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  // â”€â”€ Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const URL_DATOS    = "{% url 'reportes:obtener_datos_reporte' %}";
+  const URL_EXPORTAR = "{% url 'reportes:exportar_csv' %}";
+  const CSRF         = '{{ csrf_token }}';
+
+  const COLORES = {
+    temperatura: { border: '#dc3545', bg: 'rgba(220,53,69,0.12)'   },
+    tension:     { border: '#ffc107', bg: 'rgba(255,193,7,0.12)'   },
+    corriente:   { border: '#0dcaf0', bg: 'rgba(13,202,240,0.12)'  },
+    humedad:     { border: '#0d6efd', bg: 'rgba(13,110,253,0.12)'  },
+    presion:     { border: '#6c757d', bg: 'rgba(108,117,125,0.12)' },
+  };
+
+  // â”€â”€ Referencias DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const selDispositivo  = document.getElementById('sel-dispositivo');
+  const selSensor       = document.getElementById('sel-sensor');
+  const inpDesde        = document.getElementById('inp-desde');
+  const inpHasta        = document.getElementById('inp-hasta');
+  const form            = document.getElementById('form-reporte');
+  const btnLimpiar      = document.getElementById('btn-limpiar');
+  const btnExportar     = document.getElementById('btn-exportar');
+  const spinner         = document.getElementById('spinner');
+  const panelError      = document.getElementById('panel-error');
+  const msgError        = document.getElementById('msg-error');
+  const panelResultados = document.getElementById('panel-resultados');
+  const lblResumen      = document.getElementById('lbl-resumen');
+  const badgeTotal      = document.getElementById('badge-total');
+  const badgeTabla      = document.getElementById('badge-tabla');
+  const tablaBody       = document.getElementById('tabla-body');
+  const statMax         = document.getElementById('stat-max');
+  const statMaxTs       = document.getElementById('stat-max-ts');
+  const statMin         = document.getElementById('stat-min');
+  const statMinTs       = document.getElementById('stat-min-ts');
+  const statAvg         = document.getElementById('stat-avg');
+  const statUnidad      = document.getElementById('stat-unidad');
+
+  let chartInstance = null;
+
+  // â”€â”€ Fechas por defecto: Ãºltimos 7 dÃ­as â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  (function () {
+    const hoy   = new Date();
+    const hace7 = new Date();
+    hace7.setDate(hoy.getDate() - 7);
+    inpDesde.value = hace7.toISOString().slice(0, 10);
+    inpHasta.value = hoy.toISOString().slice(0, 10);
+  })();
+
+  // â”€â”€ Cargar sensores al cambiar de dispositivo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  selDispositivo.addEventListener('change', function () {
+    const opt = this.options[this.selectedIndex];
+    selSensor.innerHTML = '<option value="">â€” SeleccionÃ¡ un sensor â€”</option>';
+    selSensor.disabled  = true;
+    ocultarResultados();
+
+    if (!opt.value) return;
+
+    let sensores = [];
+    try { sensores = JSON.parse(opt.dataset.sensores || '[]'); } catch (_) {}
+
+    if (!sensores.length) {
+      selSensor.innerHTML = '<option value="">Sin sensores configurados</option>';
+      return;
+    }
+
+    sensores.forEach(function (s) {
+      const o       = document.createElement('option');
+      o.value       = JSON.stringify({ tipo: s.tipo, canal: s.canal });
+      o.textContent = s.nombre + ' (' + s.tipo + ')';
+      selSensor.appendChild(o);
+    });
+    selSensor.disabled = false;
+  });
+
+  // â”€â”€ Submit: generar reporte â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    ocultarResultados();
+
+    const mac = selDispositivo.value;
+    if (!mac) { mostrarError('SeleccionÃ¡ un dispositivo.'); return; }
+
+    let sensorData;
+    try {
+      sensorData = JSON.parse(selSensor.value);
+    } catch (_) {
+      mostrarError('SeleccionÃ¡ un sensor.'); return;
+    }
+
+    const params = new URLSearchParams({
+      mac_address:  mac,
+      tipo_sensor:  sensorData.tipo,
+      canal:        sensorData.canal,
+      fecha_inicio: inpDesde.value,
+      fecha_fin:    inpHasta.value,
+    });
+
+    mostrarSpinner(true);
+
+    try {
+      const resp = await fetch(URL_DATOS + '?' + params.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': CSRF },
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || !data.ok) {
+        mostrarError(data.error || 'Error al obtener los datos.');
+        return;
+      }
+
+      renderResultados(data, params);
+
+    } catch (_) {
+      mostrarError('Error de red. VerificÃ¡ la conexiÃ³n e intentÃ¡ nuevamente.');
+    } finally {
+      mostrarSpinner(false);
+    }
+  });
+
+  // â”€â”€ Limpiar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  btnLimpiar.addEventListener('click', function () {
+    form.reset();
+    selSensor.innerHTML = '<option value="">â€” Primero elegÃ­ un dispositivo â€”</option>';
+    selSensor.disabled  = true;
+    // Restaurar fechas por defecto
+    const hoy   = new Date();
+    const hace7 = new Date();
+    hace7.setDate(hoy.getDate() - 7);
+    inpDesde.value = hace7.toISOString().slice(0, 10);
+    inpHasta.value = hoy.toISOString().slice(0, 10);
+    ocultarResultados();
+  });
+
+  // â”€â”€ Descargar CSV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  btnExportar.addEventListener('click', function () {
+    window.location.href = this.dataset.url;
+  });
+
+  // â”€â”€ Renderizar resultados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function renderResultados(data, params) {
+    if (!data.lecturas || !data.lecturas.length) {
+      mostrarError('No hay lecturas para los filtros seleccionados.');
+      return;
+    }
+
+    const lecturas = data.lecturas;
+    const valores  = lecturas.map(function (l) { return l.valor; });
+
+    // â”€â”€ EstadÃ­sticas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const maxVal = Math.max.apply(null, valores);
+    const minVal = Math.min.apply(null, valores);
+    const avg    = valores.reduce(function (a, b) { return a + b; }, 0) / valores.length;
+
+    const maxItem = lecturas.find(function (l) { return l.valor === maxVal; });
+    const minItem = lecturas.find(function (l) { return l.valor === minVal; });
+
+    statMax.textContent    = maxVal.toFixed(2);
+    statMaxTs.textContent  = maxItem ? maxItem.timestamp.replace('T', ' ').slice(0, 16) : '';
+    statMin.textContent    = minVal.toFixed(2);
+    statMinTs.textContent  = minItem ? minItem.timestamp.replace('T', ' ').slice(0, 16) : '';
+    statAvg.textContent    = avg.toFixed(2);
+    statUnidad.textContent = data.unidad;
+
+    // â”€â”€ URL de exportaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    btnExportar.dataset.url = URL_EXPORTAR + '?' + params.toString();
+
+    // â”€â”€ Resumen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    lblResumen.textContent =
+      data.dispositivo + ' Â· ' + data.unidad + ' Â· ' +
+      data.fecha_inicio + ' â†’ ' + data.fecha_fin;
+    badgeTotal.textContent = data.total + ' registros';
+    badgeTabla.textContent = data.total + ' filas';
+
+    // â”€â”€ GrÃ¡fico â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const labels = lecturas.map(function (l) {
+      return l.timestamp.replace('T', ' ').slice(0, 16);
+    });
+    const c = COLORES[data.tipo_sensor] || COLORES.temperatura;
+
+    if (chartInstance) { chartInstance.destroy(); }
+
+    chartInstance = new Chart(
+      document.getElementById('chart-reporte').getContext('2d'),
+      {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: data.unidad,
+            data: valores,
+            borderColor: c.border,
+            backgroundColor: c.bg,
+            borderWidth: 2,
+            pointRadius: data.total > 200 ? 0 : 3,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: true,
+          }],
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  return ' ' + ctx.parsed.y.toFixed(2) + ' ' + data.unidad;
+                },
+              },
+            },
+          },
+          scales: {
+            x: { ticks: { maxTicksLimit: 10, maxRotation: 0 } },
+            y: { beginAtZero: false },
+          },
+        },
+      }
+    );
+
+    // â”€â”€ Tabla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    tablaBody.innerHTML = '';
+    lecturas.slice().reverse().forEach(function (l) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="px-3 text-body-secondary small">' +
+          l.timestamp.replace('T', ' ') +
+        '</td>' +
+        '<td class="text-end pe-3 fw-semibold">' + l.valor.toFixed(2) + '</td>';
+      tablaBody.appendChild(tr);
+    });
+
+    panelResultados.classList.remove('d-none');
+  }
+
+  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function mostrarSpinner(show) {
+    spinner.classList.toggle('d-none', !show);
+  }
+
+  function mostrarError(msg) {
+    msgError.textContent = msg;
+    panelError.classList.remove('d-none');
+  }
+
+  function ocultarResultados() {
+    panelError.classList.add('d-none');
+    panelResultados.classList.add('d-none');
+    tablaBody.innerHTML = '';
+  }
+
+})();
+</script>
+{% endblock %}
