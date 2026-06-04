@@ -12,12 +12,12 @@
 ║  ✅  Multiusuario     ║  Sesiones aisladas por usuario (WebSocket)    ║
 ║  ✅  Dashboard RT     ║  Sensores genéricos en tiempo real            ║
 ║  ✅  Telemetría gen.  ║  Temp · Tensión · Corriente · Humedad · Pres. ║
-║  ✅  MQTT bridge      ║  Suscriptor autónomo → API REST               ║
+║  ✅  MQTT bridge      ║  Suscriptor autónomo en hilo de fondo        ║
 ║  ✅  Control acceso   ║  @requiere_premium · redirect a planes        ║
 ║  ✅  Página de planes ║  Vista intermediaria con cards Gratis/Premium ║
 ║  ✅  MercadoPago      ║  Checkout Pro (modo TEST)                     ║
 ║  ✅  Bootstrap UI     ║  base.html · tema claro/oscuro · sidebar      ║
-║  🔄  Reportes         ║  Protegido · template pendiente               ║
+║  ✅  Reportes         ║  Históricos con Chart.js · CSV · Premium      ║
 ║  🔄  Alertas          ║  Protegido · template pendiente               ║
 ║  🔄  PostgreSQL       ║  SQLite en dev → Postgres en producción       ║
 ╚══════════════════════╩═══════════════════════════════════════════════╝
@@ -349,7 +349,11 @@ Monitorea/                          ← raíz del repositorio
 │   │           ├── landing.html
 │   │           └── dashboard.html  ← UI tiempo real + Chart.js
 │   │
-│   ├── REPORTES/                   ── 📈 históricos  🔒 premium ── 🔄 pendiente
+│   ├── REPORTES/                   ── 📈 históricos  🔒 premium ── ✅ funcional
+│   │   ├── views.py                ← index · obtener_datos_reporte · exportar_csv
+│   │   ├── urls.py                 ← / · /datos/ · /exportar/
+│   │   └── templates/REPORTES/
+│   │       └── reportes.html       ← filtros · Chart.js · stats · CSV
 │   └── ALERTAS/                    ── 🔔 alertas     🔒 premium ── 🔄 pendiente
 │
 ├── .env                            ← credenciales (NO en git)

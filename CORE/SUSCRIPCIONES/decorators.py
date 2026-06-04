@@ -1,7 +1,10 @@
+import logging
 from functools import wraps
 
 from django.contrib import messages
 from django.shortcuts import redirect
+
+logger = logging.getLogger(__name__)
 
 
 def requiere_premium(view_func):
@@ -29,8 +32,13 @@ def requiere_premium(view_func):
         try:
             if request.user.tiene_premium_activo():
                 return view_func(request, *args, **kwargs)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(
+                'requiere_premium: excepcion para usuario %s: %s',
+                getattr(request.user, 'username', '?'),
+                e,
+                exc_info=True,
+            )
 
         messages.warning(
             request,

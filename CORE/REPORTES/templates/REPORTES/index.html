@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitorea — Reportes{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  {# ── Header ── #}
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-bar-chart-line fs-4 text-primary"></i>
+      <h4 class="fw-bold mb-0">Reportes históricos</h4>
+      <span class="text-body-secondary small fw-normal">{{ request.user.empresa }}</span>
+    </div>
+    {% if lecturas %}
+    <a href="{% url 'reportes:exportar_csv' %}?mac={{ mac_sel }}&tipo={{ tipo_sel }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}"
+       class="btn btn-success btn-sm">
+      <i class="bi bi-filetype-csv me-1"></i>Exportar CSV
+    </a>
+    {% endif %}
+  </div>
+
+  {# ── Panel de filtros ── #}
+  <div class="card border mb-4">
+    <div class="card-header d-flex align-items-center gap-2 py-2">
+      <i class="bi bi-funnel text-primary"></i>
+      <span class="fw-semibold">Filtros</span>
+    </div>
+    <div class="card-body">
+      <form method="get" action="{% url 'reportes:index' %}" class="row g-3 align-items-end">
+
+        <div class="col-12 col-md-4 col-lg-3">
+          <label for="id_mac" class="form-label small fw-semibold">Dispositivo</label>
+          <select name="mac" id="id_mac" class="form-select form-select-sm">
+            <option value="">— Todos —</option>
+            {% for disp in dispositivos %}
+            <option value="{{ disp.mac_address }}"
+              {% if mac_sel == disp.mac_address %}selected{% endif %}>
+              {{ disp.nombre }} ({{ disp.mac_address }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4 col-lg-3">
+          <label for="id_tipo" class="form-label small fw-semibold">Tipo de sensor</label>
+          <select name="tipo" id="id_tipo" class="form-select form-select-sm">
+            <option value="">— Todos —</option>
+            {% for tipo, label in tipos_disponibles %}
+            <option value="{{ tipo }}"
+              {% if tipo_sel == tipo %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label for="id_desde" class="form-label small fw-semibold">Desde</label>
+          <input type="date" name="fecha_desde" id="id_desde"
+                 class="form-control form-control-sm"
+                 value="{{ fecha_desde }}">
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label for="id_hasta" class="form-label small fw-semibold">Hasta</label>
+          <input type="date" name="fecha_hasta" id="id_hasta"
+                 class="form-control form-control-sm"
+                 value="{{ fecha_hasta }}">
+        </div>
+
+        <div class="col-12 col-lg-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm flex-fill">
+            <i class="bi bi-search me-1"></i>Filtrar
+          </button>
+          <a href="{% url 'reportes:index' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-lg"></i>
+          </a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  {# ── Sin datos ── #}
+  {% if not lecturas %}
+  <div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
+    <i class="bi bi-inbox fs-1 text-body-secondary mb-3"></i>
+    <h5 class="fw-semibold mb-1">Sin lecturas en el período seleccionado</h5>
+    <p class="text-body-secondary mb-0">Ajustá los filtros o verificá que los dispositivos hayan enviado datos.</p>
+  </div>
+  {% else %}
+
+  {# ── Gráfico de evolución ── #}
+  <div class="card border mb-4">
+    <div class="card-header d-flex align-items-center gap-2 py-2">
+      <i class="bi bi-graph-up text-primary"></i>
+      <span class="fw-semibold">Evolución temporal</span>
+      <span class="badge bg-secondary-subtle text-secondary fw-normal ms-auto">
+        Últimas {{ lecturas|length }} lecturas
+      </span>
+    </div>
+    <div class="card-body">
+      <canvas id="chartHistorico" height="80"></canvas>
+    </div>
+  </div>
+
+  {# ── Tabla de lecturas ── #}
+  <div class="card border">
+    <div class="card-header d-flex align-items-center gap-2 py-2">
+      <i class="bi bi-table text-primary"></i>
+      <span class="fw-semibold">Lecturas</span>
+      <span class="badge bg-primary-subtle text-primary fw-normal ms-auto">
+        {{ lecturas|length }} registros{% if lecturas|length == 500 %} (límite 500){% endif %}
+      </span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Dispositivo</th>
+              <th>MAC</th>
+              <th>Tipo sensor</th>
+              <th>Canal</th>
+              <th class="text-end">Valor</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in lecturas %}
+            <tr>
+              <td class="px-3 fw-semibold">{{ l.dispositivo.nombre }}</td>
+              <td><code class="small">{{ l.dispositivo.mac_address }}</code></td>
+              <td>
+                <span class="badge
+                  {% if l.tipo_sensor == 'temperatura' %}bg-danger-subtle text-danger
+                  {% elif l.tipo_sensor == 'tension' %}bg-warning-subtle text-warning-emphasis
+                  {% elif l.tipo_sensor == 'corriente' %}bg-info-subtle text-info-emphasis
+                  {% elif l.tipo_sensor == 'humedad' %}bg-primary-subtle text-primary
+                  {% else %}bg-secondary-subtle text-secondary
+                  {% endif %} rounded-pill">
+                  {{ l.tipo_sensor }}
+                </span>
+              </td>
+              <td class="text-center">{{ l.canal }}</td>
+              <td class="text-end fw-semibold">{{ l.valor }}</td>
+              <td class="text-body-secondary small">{{ l.timestamp|date:"d/m/Y H:i:s" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+{% if lecturas %}
+<script>
+(function () {
+  // Datos del backend (invertidos para orden cronológico ascendente)
+  const raw = [
+    {% for l in lecturas %}
+    { ts: "{{ l.timestamp|date:'d/m H:i' }}", val: {{ l.valor }}, tipo: "{{ l.tipo_sensor }}" },
+    {% endfor %}
+  ].reverse();
+
+  const labels = raw.map(r => r.ts);
+  const values = raw.map(r => r.val);
+
+  // Color según tipo de sensor del primer registro
+  const tipoColor = {
+    temperatura: { border: '#dc3545', bg: 'rgba(220,53,69,0.15)' },
+    tension:     { border: '#ffc107', bg: 'rgba(255,193,7,0.15)'  },
+    corriente:   { border: '#0dcaf0', bg: 'rgba(13,202,240,0.15)' },
+    humedad:     { border: '#0d6efd', bg: 'rgba(13,110,253,0.15)' },
+    presion:     { border: '#6c757d', bg: 'rgba(108,117,125,0.15)'},
+  };
+  const tipoActual = raw.length ? raw[0].tipo : 'temperatura';
+  const colores = tipoColor[tipoActual] || tipoColor.temperatura;
+
+  const ctx = document.getElementById('chartHistorico').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: tipoActual,
+        data: values,
+        borderColor: colores.border,
+        backgroundColor: colores.bg,
+        borderWidth: 2,
+        pointRadius: raw.length > 100 ? 0 : 3,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: 12,
+            maxRotation: 0,
+          }
+        },
+        y: { beginAtZero: false }
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+
+{% endblock %}
