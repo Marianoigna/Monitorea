@@ -4,23 +4,27 @@
 > Los datos llegan desde sensores físicos (o simuladores MQTTX) a través de MQTT, se persisten en base de datos y se visualizan instantáneamente en dashboards personalizados — sin recargar la página.
 
 ```
-╔══════════════════════════════════════════════════════════════════════╗
-║                    ESTADO ACTUAL DEL PROYECTO                       ║
-╠══════════════════════╦═══════════════════════════════════════════════╣
-║  ✅  Landing page     ║  Página pública de bienvenida en /           ║
-║  ✅  Autenticación    ║  Login · Registro · Logout · CustomUser       ║
-║  ✅  Multiusuario     ║  Sesiones aisladas por usuario (WebSocket)    ║
-║  ✅  Dashboard RT     ║  Sensores genéricos en tiempo real            ║
-║  ✅  Telemetría gen.  ║  Temp · Tensión · Corriente · Humedad · Pres. ║
-║  ✅  MQTT bridge      ║  Suscriptor autónomo en hilo de fondo        ║
-║  ✅  Control acceso   ║  @requiere_premium · redirect a planes        ║
-║  ✅  Página de planes ║  Vista intermediaria con cards Gratis/Premium ║
-║  ✅  MercadoPago      ║  Checkout Pro (modo TEST)                     ║
-║  ✅  Bootstrap UI     ║  base.html · tema claro/oscuro · sidebar      ║
-║  ✅  Reportes         ║  Históricos con Chart.js · CSV · Premium      ║
-║  🔄  Alertas          ║  Protegido · template pendiente               ║
-║  🔄  PostgreSQL       ║  SQLite en dev → Postgres en producción       ║
-╚══════════════════════╩═══════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════════════╗
+║                      ESTADO ACTUAL DEL PROYECTO                         ║
+╠══════════════════════════╦═══════════════════════════════════════════════╣
+║  ✅  Landing page         ║  Página pública de bienvenida en /           ║
+║  ✅  Autenticación        ║  Login · Registro · Logout · CustomUser       ║
+║  ✅  Multiusuario         ║  Sesiones aisladas por usuario (WebSocket)    ║
+║  ✅  Dashboard RT         ║  Sensores genéricos en tiempo real            ║
+║  ✅  Telemetría genérica  ║  Temp · Tensión · Corriente · Humedad · Pres. ║
+║  ✅  MQTT bridge          ║  Suscriptor autónomo en hilo de fondo         ║
+║  ✅  Control de acceso    ║  @requiere_premium · redirect a planes        ║
+║  ✅  Página de planes     ║  Cards Gratis / Premium · MercadoPago TEST    ║
+║  ✅  MercadoPago          ║  Checkout Pro · webhook automático            ║
+║  ✅  Bootstrap UI         ║  base.html · tema claro/oscuro · sidebar      ║
+║  ✅  Reportes             ║  Históricos · Chart.js · CSV · 🔒 Premium     ║
+║  ✅  Alertas              ║  Umbrales · WhatsApp Twilio · 🔒 Premium      ║
+║        ↳ ConfiguracionAlerta ║ por dispositivo/sensor · min/max °C       ║
+║        ↳ HistorialAlerta     ║ registro de cada disparo                  ║
+║        ↳ Signal post_save    ║ evaluación automática en cada telemetría  ║
+║        ↳ Cooldown            ║ configurable vía .env (seg.)              ║
+║  🔄  PostgreSQL             ║  SQLite en dev → Postgres en producción    ║
+╚══════════════════════════╩═══════════════════════════════════════════════╝
 ```
 
 ---
@@ -200,7 +204,7 @@ Cada usuario tiene su sesión completamente aislada. Los datos de los dispositiv
 ║  ✅ Dashboard tiempo real                          ║                   ║
 ║  ✅ Reportes históricos (filtros por fecha/sensor) ║                   ║
 ║  ✅ Configurar alertas (umbrales + notificaciones) ║                   ║
-║  ✅ Notificaciones SMS/email vía Twilio            ║                   ║
+║  ✅ Notificaciones WhatsApp vía Twilio             ║                   ║
 ╚════════════════════════════════════════════════════╩════════════════════╝
 ```
 
@@ -354,9 +358,19 @@ Monitorea/                          ← raíz del repositorio
 │   │   ├── urls.py                 ← / · /datos/ · /exportar/
 │   │   └── templates/REPORTES/
 │   │       └── reportes.html       ← filtros · Chart.js · stats · CSV
-│   └── ALERTAS/                    ── 🔔 alertas     🔒 premium ── 🔄 pendiente
+│   └── ALERTAS/                    ── 🔔 alertas     🔒 premium ── ✅ funcional
+       ├── models.py               ← ConfiguracionAlerta · HistorialAlerta
+       │                              unique_together(dispositivo, tipo_sensor)
+       ├── views.py                ← alertas_index · guardar_alerta
+       │                              handle_nueva_telemetria (signal handler)
+       ├── utils.py                ← enviar_alerta_whatsapp() vía Twilio SDK
+       ├── apps.py                 ← conecta post_save Telemetria → handler
+       ├── admin.py                ← ConfiguracionAlertaAdmin · HistorialAlertaAdmin
+       ├── urls.py                 ← /alertas/ · /alertas/guardar/
+       └── templates/ALERTAS/
+           └── alertas.html        ← formulario agrupado por establecimiento
 │
-├── .env                            ← credenciales (NO en git)
+├── .env                            ← SECRET_KEY · Twilio · MercadoPago (NO en git)
 ├── venv/                           ← entorno virtual (NO en git)
 ├── requirements.txt
 ├── levantar_servidor.bat           ← inicio rápido Windows
@@ -434,7 +448,7 @@ daphne -b 127.0.0.1 -p 8000 MONITOREA.asgi:application
 ║  ✅ Dashboard tiempo real                          ║                   ║
 ║  ✅ Reportes históricos (filtros por fecha/sensor) ║                   ║
 ║  ✅ Configurar alertas (umbrales + notificaciones) ║                   ║
-║  ✅ Notificaciones SMS/email vía Twilio            ║                   ║
+║  ✅ Notificaciones WhatsApp vía Twilio             ║                   ║
 ╚════════════════════════════════════════════════════╩════════════════════╝
 ```
 

@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitorea — Alertas{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  {# ── Header ── #}
+  <div class="d-flex align-items-center mb-4 gap-2">
+    <i class="bi bi-bell fs-4 text-warning"></i>
+    <h4 class="fw-bold mb-0">Alertas</h4>
+    <span class="text-body-secondary small fw-normal">{{ request.user.empresa }}</span>
+  </div>
+
+  {# ── Sin dispositivos ── #}
+  {% if not dispositivos %}
+  <div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
+    <i class="bi bi-cpu fs-1 text-body-secondary mb-3"></i>
+    <h5 class="fw-semibold mb-1">No tenés dispositivos registrados</h5>
+    <p class="text-body-secondary mb-4">Registrá un establecimiento y dispositivo desde el Dashboard para empezar.</p>
+    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary">
+      <i class="bi bi-speedometer2 me-1"></i>Ir al Dashboard
+    </a>
+  </div>
+  {% else %}
+
+  <div class="row g-4">
+
+    {# ══════════════════════════════════════════════════════════
+       COLUMNA IZQUIERDA — Formulario nueva alerta
+    ══════════════════════════════════════════════════════════ #}
+    <div class="col-12 col-lg-4">
+      <div class="card border">
+        <div class="card-header d-flex align-items-center gap-2 py-2">
+          <i class="bi bi-plus-circle text-primary"></i>
+          <span class="fw-semibold">Nueva alerta</span>
+        </div>
+        <div class="card-body">
+          <form id="form-alerta" novalidate>
+            {% csrf_token %}
+
+            {# ── Dispositivo ── #}
+            <div class="mb-3">
+              <label for="sel-dispositivo" class="form-label small fw-semibold">Dispositivo</label>
+              <select id="sel-dispositivo" class="form-select" required>
+                <option value="">— Seleccioná un dispositivo —</option>
+                {% for disp in dispositivos %}
+                <option value="{{ disp.mac_address }}"
+                        data-sensores='[{% for s in disp.sensores.all %}{"tipo":"{{ s.tipo_sensor }}","canal":{{ s.canal }},"nombre":"{{ s.nombre_personalizado }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+                  {{ disp.establecimiento.nombre }} — {{ disp.nombre }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {# ── Sensor (dinámico) ── #}
+            <div class="mb-3">
+              <label for="sel-sensor" class="form-label small fw-semibold">Sensor</label>
+              <select id="sel-sensor" class="form-select" required disabled>
+                <option value="">— Primero elegí un dispositivo —</option>
+              </select>
+            </div>
+
+            {# ── Nombre de la alerta ── #}
+            <div class="mb-3">
+              <label for="inp-nombre" class="form-label small fw-semibold">Nombre de la alerta</label>
+              <input type="text" id="inp-nombre" class="form-control"
+                     placeholder="Ej: Temp. alta cámara" maxlength="100" required>
+            </div>
+
+            {# ── Umbrales ── #}
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label for="inp-min" class="form-label small fw-semibold">Umbral mínimo</label>
+                <input type="number" id="inp-min" class="form-control" step="0.1"
+                       placeholder="Opcional">
+                <div class="form-text">Alerta si baja de este valor</div>
+              </div>
+              <div class="col-6">
+                <label for="inp-max" class="form-label small fw-semibold">Umbral máximo</label>
+                <input type="number" id="inp-max" class="form-control" step="0.1"
+                       placeholder="Opcional">
+                <div class="form-text">Alerta si sube de este valor</div>
+              </div>
+            </div>
+
+            {# ── Aviso umbral ── #}
+            <div id="aviso-umbral" class="alert alert-warning small py-2 d-none">
+              Definí al menos un umbral (mínimo o máximo).
+            </div>
+
+            {# ── Botón ── #}
+            <div class="d-grid">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-bell-plus me-1"></i>Crear alerta
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════
+       COLUMNA DERECHA — Lista de alertas configuradas
+    ══════════════════════════════════════════════════════════ #}
+    <div class="col-12 col-lg-8">
+      <div class="card border">
+        <div class="card-header d-flex align-items-center gap-2 py-2">
+          <i class="bi bi-list-check text-primary"></i>
+          <span class="fw-semibold">Alertas configuradas</span>
+          <span class="badge bg-secondary ms-auto" id="badge-total">{{ alertas|length }}</span>
+        </div>
+
+        {# ── Sin alertas aún ── #}
+        <div id="sin-alertas" class="{% if alertas %}d-none{% endif %} text-center py-5 text-body-secondary">
+          <i class="bi bi-bell-slash fs-1 mb-3 d-block"></i>
+          <p class="mb-0">Todavía no configuraste ninguna alerta.<br>
+             Usá el formulario de la izquierda para crear la primera.</p>
+        </div>
+
+        {# ── Tabla ── #}
+        <div id="tabla-wrapper" class="{% if not alertas %}d-none{% endif %}">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="tabla-alertas">
+              <thead class="table-light">
+                <tr>
+                  <th>Nombre</th>
+                  <th>Dispositivo</th>
+                  <th>Sensor</th>
+                  <th class="text-center">Mín.</th>
+                  <th class="text-center">Máx.</th>
+                  <th class="text-center">Estado</th>
+                  <th class="text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-alertas">
+                {% for alerta in alertas %}
+                <tr id="fila-{{ alerta.id }}">
+                  <td class="fw-semibold">{{ alerta.nombre }}</td>
+                  <td>
+                    <span class="text-body-secondary small">{{ alerta.dispositivo.establecimiento.nombre }}</span><br>
+                    {{ alerta.dispositivo.nombre }}
+                  </td>
+                  <td>
+                    <span class="badge bg-primary-subtle text-primary-emphasis">
+                      {{ alerta.get_tipo_sensor_display }}
+                    </span>
+                    <span class="text-body-secondary small">ch.{{ alerta.canal }}</span>
+                  </td>
+                  <td class="text-center">
+                    {% if alerta.umbral_min is not None %}
+                      <span class="text-info fw-semibold">{{ alerta.umbral_min }}</span>
+                    {% else %}
+                      <span class="text-body-secondary">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if alerta.umbral_max is not None %}
+                      <span class="text-danger fw-semibold">{{ alerta.umbral_max }}</span>
+                    {% else %}
+                      <span class="text-body-secondary">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <span class="badge {% if alerta.activa %}bg-success{% else %}bg-secondary{% endif %}"
+                          id="badge-{{ alerta.id }}">
+                      {% if alerta.activa %}Activa{% else %}Inactiva{% endif %}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <button class="btn btn-sm btn-outline-secondary btn-toggle"
+                            data-id="{{ alerta.id }}"
+                            data-url="{% url 'alertas:toggle' alerta.id %}"
+                            title="Activar / Desactivar">
+                      <i class="bi bi-toggle-{% if alerta.activa %}on text-success{% else %}off{% endif %}"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger btn-eliminar ms-1"
+                            data-id="{{ alerta.id }}"
+                            data-url="{% url 'alertas:eliminar' alerta.id %}"
+                            title="Eliminar alerta">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>{# /row #}
+  {% endif %}
+
+</div>{# /container #}
+
+
+{# ══════════════════════════════════════════════════════════
+   TOAST de feedback
+══════════════════════════════════════════════════════════ #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+  <div id="toast-alerta" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-msg">Operación realizada.</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto"
+              data-bs-dismiss="toast" aria-label="Cerrar"></button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+// ── Poblar selector de sensores ────────────────────────────────────────────
+document.getElementById('sel-dispositivo').addEventListener('change', function () {
+  const opt     = this.selectedOptions[0];
+  const selSensor = document.getElementById('sel-sensor');
+  selSensor.innerHTML = '';
+
+  if (!opt.value) {
+    selSensor.innerHTML = '<option value="">— Primero elegí un dispositivo —</option>';
+    selSensor.disabled = true;
+    return;
+  }
+
+  let sensores = [];
+  try { sensores = JSON.parse(opt.dataset.sensores || '[]'); } catch (_) {}
+
+  if (!sensores.length) {
+    selSensor.innerHTML = '<option value="">Sin sensores configurados</option>';
+    selSensor.disabled = true;
+    return;
+  }
+
+  sensores.forEach(s => {
+    const o = document.createElement('option');
+    o.value = `${s.tipo}:${s.canal}`;
+    o.textContent = `${s.nombre} (${s.tipo} ch.${s.canal})`;
+    selSensor.appendChild(o);
+  });
+  selSensor.disabled = false;
+});
+
+// ── Envío del formulario ───────────────────────────────────────────────────
+document.getElementById('form-alerta').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  document.getElementById('aviso-umbral').classList.add('d-none');
+
+  const mac  = document.getElementById('sel-dispositivo').value;
+  const sens = document.getElementById('sel-sensor').value;
+  const nombre = document.getElementById('inp-nombre').value.trim();
+  const minVal = document.getElementById('inp-min').value.trim();
+  const maxVal = document.getElementById('inp-max').value.trim();
+
+  if (!mac || !sens || !nombre) return;
+  if (!minVal && !maxVal) {
+    document.getElementById('aviso-umbral').classList.remove('d-none');
+    return;
+  }
+
+  const [tipo, canal] = sens.split(':');
+  const payload = {
+    mac_address: mac,
+    tipo_sensor: tipo,
+    canal:       parseInt(canal, 10),
+    nombre:      nombre,
+    umbral_min:  minVal !== '' ? parseFloat(minVal) : null,
+    umbral_max:  maxVal !== '' ? parseFloat(maxVal) : null,
+  };
+
+  try {
+    const res  = await fetch("{% url 'alertas:crear' %}", {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body:    JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      mostrarToast(data.error || 'Error al crear la alerta', 'danger');
+      return;
+    }
+
+    mostrarToast('Alerta creada. Recargando…', 'success');
+    setTimeout(() => location.reload(), 900);
+  } catch (err) {
+    mostrarToast('Error de red. Intentá de nuevo.', 'danger');
+  }
+});
+
+// ── Toggle activa / inactiva ───────────────────────────────────────────────
+document.getElementById('tbody-alertas').addEventListener('click', async function (e) {
+  const btnToggle   = e.target.closest('.btn-toggle');
+  const btnEliminar = e.target.closest('.btn-eliminar');
+
+  if (btnToggle) {
+    const id  = btnToggle.dataset.id;
+    const url = btnToggle.dataset.url;
+    try {
+      const res  = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } });
+      const data = await res.json();
+      if (!res.ok) { mostrarToast(data.error, 'danger'); return; }
+
+      const badge = document.getElementById(`badge-${id}`);
+      const icon  = btnToggle.querySelector('i');
+      if (data.activa) {
+        badge.className = 'badge bg-success';
+        badge.textContent = 'Activa';
+        icon.className  = 'bi bi-toggle-on text-success';
+      } else {
+        badge.className = 'badge bg-secondary';
+        badge.textContent = 'Inactiva';
+        icon.className  = 'bi bi-toggle-off';
+      }
+      mostrarToast(data.activa ? 'Alerta activada' : 'Alerta desactivada', 'success');
+    } catch (_) {
+      mostrarToast('Error de red.', 'danger');
+    }
+  }
+
+  if (btnEliminar) {
+    if (!confirm('¿Eliminás esta alerta?')) return;
+    const id  = btnEliminar.dataset.id;
+    const url = btnEliminar.dataset.url;
+    try {
+      const res  = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } });
+      const data = await res.json();
+      if (!res.ok) { mostrarToast(data.error, 'danger'); return; }
+
+      document.getElementById(`fila-${id}`).remove();
+      const total = document.querySelectorAll('#tbody-alertas tr').length;
+      document.getElementById('badge-total').textContent = total;
+      if (total === 0) {
+        document.getElementById('tabla-wrapper').classList.add('d-none');
+        document.getElementById('sin-alertas').classList.remove('d-none');
+      }
+      mostrarToast('Alerta eliminada', 'success');
+    } catch (_) {
+      mostrarToast('Error de red.', 'danger');
+    }
+  }
+});
+
+// ── Utilidad toast ─────────────────────────────────────────────────────────
+function mostrarToast(msg, tipo) {
+  const el = document.getElementById('toast-alerta');
+  el.className = `toast align-items-center text-bg-${tipo} border-0`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el, { delay: 3000 }).show();
+}
+</script>
+{% endblock %}
