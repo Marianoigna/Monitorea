@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitorea — Configuración de Alertas{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  {# ── Mensajes flash (Django messages) ── #}
+  {% if messages %}
+  <div class="mb-4">
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% elif msg.tags %}{{ msg.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Header ── #}
+  <div class="d-flex align-items-center mb-4 gap-2">
+    <i class="bi bi-bell-fill fs-4 text-warning"></i>
+    <h4 class="fw-bold mb-0">Configuración de Alertas Premium</h4>
+    <span class="text-body-secondary small fw-normal">{{ request.user.empresa }}</span>
+  </div>
+
+  {% if not establecimientos %}
+  {# ── Sin dispositivos ── #}
+  <div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
+    <i class="bi bi-cpu fs-1 text-body-secondary mb-3"></i>
+    <h5 class="fw-semibold mb-1">No tenés dispositivos registrados</h5>
+    <p class="text-body-secondary mb-4">Registrá un establecimiento y dispositivo desde el Dashboard para empezar.</p>
+    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary">
+      <i class="bi bi-speedometer2 me-1"></i>Ir al Dashboard
+    </a>
+  </div>
+
+  {% else %}
+
+  {# ══ Listar establecimientos y dispositivos ══ #}
+  {% for est, dispositivos_list in establecimientos.items %}
+
+  <div class="mb-5">
+    <h5 class="fw-semibold text-body-secondary mb-3">
+      <i class="bi bi-building me-1"></i>{{ est.nombre }}
+    </h5>
+
+    {% for disp, cfg_temp in dispositivos_list %}
+    <div class="card border mb-3">
+      <div class="card-header d-flex align-items-center gap-2 py-2">
+        <i class="bi bi-cpu text-primary"></i>
+        <span class="fw-semibold">{{ disp.nombre }}</span>
+        <span class="text-body-secondary small ms-1">{{ disp.mac_address }}</span>
+      </div>
+      <div class="card-body">
+
+        {# ── Formulario Temperatura ── #}
+        <h6 class="fw-semibold mb-3">
+          <i class="bi bi-thermometer-half text-danger me-1"></i>Temperatura
+        </h6>
+        <form method="post" action="{% url 'alertas:guardar_alerta' %}">
+          {% csrf_token %}
+          <input type="hidden" name="dispositivo_id" value="{{ disp.id }}">
+          <input type="hidden" name="tipo_sensor"    value="temperatura">
+
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-semibold">Temperatura Mínima (°C)</label>
+              <input type="number" name="min_valor" class="form-control" step="0.1"
+                     placeholder="Ej: -25"
+                     value="{{ cfg_temp.min_valor|default_if_none:'' }}">
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-semibold">Temperatura Máxima (°C)</label>
+              <input type="number" name="max_valor" class="form-control" step="0.1"
+                     placeholder="Ej: 8"
+                     value="{{ cfg_temp.max_valor|default_if_none:'' }}">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-semibold">WhatsApp destino</label>
+              <input type="text" name="whatsapp_destino" class="form-control"
+                     placeholder="+5491122334455"
+                     value="{{ cfg_temp.whatsapp_destino|default:'' }}">
+            </div>
+            <div class="col-12 col-md-2">
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-floppy me-1"></i>Guardar
+              </button>
+            </div>
+          </div>
+
+          {% if cfg_temp and cfg_temp.ultima_notificacion %}
+          <div class="mt-2">
+            <small class="text-body-secondary">
+              <i class="bi bi-clock-history me-1"></i>
+              Última alerta enviada: {{ cfg_temp.ultima_notificacion|date:"d/m/Y H:i" }}
+            </small>
+          </div>
+          {% endif %}
+        </form>
+
+      </div>{# /card-body #}
+    </div>{# /card #}
+    {% endfor %}{# dispositivos_list #}
+
+  </div>{# /establecimiento block #}
+  {% endfor %}{# establecimientos #}
+
+  {% endif %}
+
+</div>{# /container #}
+{% endblock %}

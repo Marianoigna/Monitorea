@@ -120,8 +120,8 @@
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'alertas:index' %}"
-             class="nav-link d-flex align-items-center gap-2 rounded px-3 py-2 {% if request.resolver_match.url_name == 'index' and 'alertas' in request.resolver_match.namespace %}active bg-primary-subtle fw-semibold{% endif %}">
+          <a href="{% url 'alertas:alertas_index' %}"
+             class="nav-link d-flex align-items-center gap-2 rounded px-3 py-2 {% if request.resolver_match.url_name == 'alertas_index' %}active bg-primary-subtle fw-semibold{% endif %}">
             <i class="bi bi-bell"></i> Alertas
           </a>
         </li>

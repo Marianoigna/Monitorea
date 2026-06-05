@@ -165,3 +165,9 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ]
 }
+
+# ── Twilio (WhatsApp alerts) ──────────────────────────────────
+TWILIO_ACCOUNT_SID   = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN    = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')  # ej: whatsapp:+14155238886
+ALERT_COOLDOWN_SEGUNDOS = int(os.environ.get('ALERT_COOLDOWN_SEGUNDOS', '300'))
