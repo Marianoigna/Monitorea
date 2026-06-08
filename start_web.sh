@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
 export DJANGO_SETTINGS_MODULE=MONITOREA.settings
