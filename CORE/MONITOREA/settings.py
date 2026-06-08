@@ -159,6 +159,11 @@ MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
 MERCADOPAGO_PLAN_ID      = os.environ.get('MERCADOPAGO_PLAN_ID', '')
 MERCADOPAGO_BACK_URL     = os.environ.get('MERCADOPAGO_BACK_URL', 'http://127.0.0.1:8000/')
 
+# ── CSRF ─────────────────────────────────────────────────────
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS', 'http://localhost:8000'
+).split(',')
+
 # ── Django REST Framework ─────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [

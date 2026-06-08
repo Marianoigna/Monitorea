@@ -15,5 +15,7 @@
         generateValue: true
       - key: ALLOWED_HOSTS
         value: "*"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://monitorea-v2.onrender.com"
       - key: PYTHON_VERSION
         value: "3.12.0"
