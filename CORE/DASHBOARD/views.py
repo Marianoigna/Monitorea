@@ -143,3 +143,43 @@ class TelemetriaAPIView(APIView):
             }
         )
         return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
+
+
+# ── API Historial Telemetría ───────────────────────────────────────────────────
+
+@login_required
+def historial_telemetria(request, mac):
+    """
+    GET /api/telemetria/<mac>/historial/?tipo=temperatura&canal=0
+    Devuelve los últimos 20 registros de un sensor para pre-cargar los gráficos.
+    """
+    mac = mac.upper()
+    tipo = request.GET.get('tipo', '').strip()
+    try:
+        canal = int(request.GET.get('canal', 0))
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'canal inválido'}, status=400)
+
+    try:
+        disp = Dispositivo.objects.select_related('establecimiento__usuario').get(mac_address=mac)
+    except Dispositivo.DoesNotExist:
+        return JsonResponse({'error': 'Dispositivo no encontrado'}, status=404)
+
+    if disp.establecimiento.usuario != request.user:
+        return JsonResponse({'error': 'Sin acceso'}, status=403)
+
+    lecturas = list(
+        Telemetria.objects
+        .filter(dispositivo=disp, tipo_sensor=tipo, canal=canal)
+        .order_by('-timestamp')[:20]
+    )
+    lecturas.reverse()  # orden cronológico ascendente
+
+    data = [
+        {
+            'valor': l.valor,
+            'timestamp': l.timestamp.strftime('%H:%M:%S'),
+        }
+        for l in lecturas
+    ]
+    return JsonResponse({'lecturas': data})

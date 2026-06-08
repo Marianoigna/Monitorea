@@ -1,6 +1,6 @@
 ﻿{% extends 'base.html' %}
 
-{% block title %}Monitorea â€” Dashboard{% endblock %}
+{% block title %}Monitorea — Dashboard{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -9,7 +9,7 @@
 {% block content %}
 <div class="container-fluid px-4 py-4">
 
-  {# â”€â”€ Header â”€â”€ #}
+  {# Header #}
   <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
     <div class="d-flex align-items-center gap-2">
       <i class="bi bi-speedometer2 fs-4 text-primary"></i>
@@ -21,19 +21,19 @@
     </button>
   </div>
 
-  {# â”€â”€ Empty state â”€â”€ #}
+  {# Empty state #}
   {% if not establecimientos %}
   <div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
     <i class="bi bi-building fs-1 text-body-secondary mb-3"></i>
-    <h5 class="fw-semibold mb-1">No tenÃ©s establecimientos registrados</h5>
-    <p class="text-body-secondary mb-4">CreÃ¡ tu primer establecimiento para empezar a monitorear dispositivos</p>
+    <h5 class="fw-semibold mb-1">No tienes establecimientos registrados</h5>
+    <p class="text-body-secondary mb-4">Crea tu primer establecimiento para empezar a monitorear dispositivos</p>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEstablecimiento">
       <i class="bi bi-plus-circle me-2"></i>Agregar Establecimiento
     </button>
   </div>
   {% endif %}
 
-  {# â”€â”€ Tarjetas de Establecimientos â”€â”€ #}
+  {# Tarjetas de Establecimientos #}
   {% for estab in establecimientos %}
   <div class="card border mb-4" id="estab-{{ estab.id }}">
 
@@ -65,7 +65,7 @@
 
         {% if not estab.dispositivos.all %}
         <p class="text-body-secondary text-center py-3 mb-0">
-          <i class="bi bi-cpu me-1"></i>Sin dispositivos. HacÃ© clic en "Agregar Dispositivo" para registrar un mÃ³dulo ESP32.
+          <i class="bi bi-cpu me-1"></i>Sin dispositivos. Haz clic en "Agregar Dispositivo" para registrar un módulo ESP32.
         </p>
         {% else %}
 
@@ -84,7 +84,7 @@
 
           {% if not disp.sensores.all %}
           <p class="text-body-secondary small mb-0">
-            <i class="bi bi-info-circle me-1"></i>Sin canales configurados. PodÃ©s agregar sensores desde el administrador.
+            <i class="bi bi-info-circle me-1"></i>Sin canales configurados. Puedes agregar sensores desde el administrador.
           </p>
           {% else %}
           <div class="row g-3">
@@ -100,7 +100,8 @@
                   </div>
                   <div class="text-center mb-2">
                     <span class="fs-2 fw-bold {% if sensor.tipo_sensor == 'temperatura' %}text-primary{% else %}text-success{% endif %}"
-                          id="val-{{ disp.mac_address|slugify }}-{{ sensor.tipo_sensor }}-{{ sensor.canal }}">--</span>
+                          id="val-{{ disp.mac_address|slugify }}-{{ sensor.tipo_sensor }}-{{ sensor.canal }}">
+                      --</span>
                     <span class="text-body-secondary small">
                       {% if sensor.tipo_sensor == 'temperatura' %}&deg;C{% else %}V{% endif %}
                     </span>
@@ -124,7 +125,7 @@
 
 </div>
 
-{# â”€â”€ Modal: Agregar Establecimiento â”€â”€ #}
+{# Modal: Agregar Establecimiento #}
 <div class="modal fade" id="modalEstablecimiento" tabindex="-1" aria-labelledby="lblModalEstab" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -138,7 +139,7 @@
         <div id="estab-error" class="alert alert-danger d-none py-2 small"></div>
         <label class="form-label fw-semibold">Nombre del Establecimiento</label>
         <input type="text" id="estab-nombre" class="form-control"
-               placeholder="Ej: Sucursal Norte, Planta Alta, DepÃ³sito...">
+               placeholder="Ej: Sucursal Norte, Planta Alta, Depósito...">
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -150,7 +151,7 @@
   </div>
 </div>
 
-{# â”€â”€ Modal: Agregar Dispositivo â”€â”€ #}
+{# Modal: Agregar Dispositivo #}
 <div class="modal fade" id="modalDispositivo" tabindex="-1" aria-labelledby="lblModalDisp" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -166,10 +167,10 @@
         <div class="mb-3">
           <label class="form-label fw-semibold">Nombre del Dispositivo</label>
           <input type="text" id="disp-nombre" class="form-control"
-                 placeholder="Ej: Tablero Principal, CÃ¡mara 1...">
+                 placeholder="Ej: Tablero Principal, Cámara 1...">
         </div>
         <div>
-          <label class="form-label fw-semibold">DirecciÃ³n MAC del ESP32</label>
+          <label class="form-label fw-semibold">Dirección MAC del ESP32</label>
           <input type="text" id="disp-mac" class="form-control font-monospace"
                  placeholder="AA:BB:CC:DD:EE:FF" maxlength="17">
           <div class="form-text">Formato: AA:BB:CC:DD:EE:FF</div>
@@ -190,7 +191,7 @@
 <script>
   const CSRF = '{{ csrf_token }}';
 
-  // â”€â”€ Chart registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Registro de gráficos
   const charts = {};
 
   function chartColors() {
@@ -243,13 +244,12 @@
     chart.update();
   }
 
-  // â”€â”€ MAC â†’ slug (quita ":" y pone minÃºscula, igual que Django |slugify) â”€â”€â”€â”€â”€â”€
+  // MAC -> slug
   function macSlug(mac) {
     return mac.toLowerCase().replace(/:/g, '');
   }
 
-
-  // WebSocket unico por usuario
+  // WebSocket
   function connectWS() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws    = new WebSocket(`${proto}://${location.host}/ws/telemetria/`);
@@ -270,7 +270,7 @@
         el.classList.add('text-danger');
       });
       document.querySelectorAll('[id^="ws-status-"]').forEach(el => {
-        el.textContent = 'Desconectado \u2014 reintentando...';
+        el.textContent = 'Desconectado — reintentando...';
       });
       setTimeout(connectWS, 3000);
     };
@@ -293,9 +293,51 @@
     };
   }
 
+  // ── Pre-carga histórica ───────────────────────────────────────────────────
+
+  // Lista de sensores configurados (generada por Django)
+  const SENSORES = [
+    {% for estab in establecimientos %}{% for disp in estab.dispositivos.all %}{% for sensor in disp.sensores.all %}
+    { mac: "{{ disp.mac_address }}", tipo: "{{ sensor.tipo_sensor }}", canal: {{ sensor.canal }} },
+    {% endfor %}{% endfor %}{% endfor %}
+  ];
+
+  async function cargarHistorial(mac, tipo, canal) {
+    const slug     = macSlug(mac);
+    const canvasId = `chart-${slug}-${tipo}-${canal}`;
+    const color    = tipo === 'temperatura' ? '#0d6efd' : '#198754';
+    const url      = `/api/telemetria/${mac}/historial/?tipo=${tipo}&canal=${canal}`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.lecturas || data.lecturas.length === 0) return;
+
+      const chart = getOrCreateChart(canvasId, color);
+      if (!chart) return;
+
+      // Poblar el gráfico con los datos históricos
+      data.lecturas.forEach(({ valor, timestamp }) => {
+        chart.data.labels.push(timestamp);
+        chart.data.datasets[0].data.push(valor);
+      });
+      chart.update('none');  // sin animación para la carga inicial
+
+      // Mostrar el último valor en el indicador numérico
+      const last = data.lecturas[data.lecturas.length - 1];
+      const el   = document.getElementById(`val-${slug}-${tipo}-${canal}`);
+      if (el) el.textContent = parseFloat(last.valor).toFixed(1);
+    } catch (e) {
+      console.warn('historial error:', mac, tipo, canal, e);
+    }
+  }
+
+  // Lanzar la pre-carga de todos los sensores al cargar la página
+  SENSORES.forEach(({ mac, tipo, canal }) => cargarHistorial(mac, tipo, canal));
+
   connectWS();
 
-  // â”€â”€ Modal: Agregar Establecimiento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Modales
   const modalEstabEl = document.getElementById('modalEstablecimiento');
   modalEstabEl.addEventListener('shown.bs.modal', () => {
     document.getElementById('estab-nombre').focus();
@@ -328,13 +370,13 @@
     location.reload();
   });
 
-  // â”€â”€ Modal: Agregar Dispositivo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Modal: Agregar Dispositivo
   const modalDispEl = document.getElementById('modalDispositivo');
   modalDispEl.addEventListener('show.bs.modal', (event) => {
     const btn = event.relatedTarget;
     document.getElementById('disp-estab-id').value = btn.dataset.estabId;
     document.getElementById('lblModalDisp').innerHTML =
-      `<i class="bi bi-cpu me-2 text-primary"></i>Agregar Dispositivo <small class="text-body-secondary fw-normal fs-6">â€” ${btn.dataset.estabNombre}</small>`;
+      `<i class="bi bi-cpu me-2 text-primary"></i>Agregar Dispositivo <small class="text-body-secondary fw-normal fs-6">— ${btn.dataset.estabNombre}</small>`;
     document.getElementById('disp-nombre').value = '';
     document.getElementById('disp-mac').value = '';
     document.getElementById('disp-error').classList.add('d-none');
@@ -368,7 +410,7 @@
     location.reload();
   });
 
-  // â”€â”€ BotÃ³n colapsar: alterna Ã­cono â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Botón colapsar: alternar icono
   document.querySelectorAll('.collapse-btn').forEach(btn => {
     const target = document.querySelector(btn.dataset.bsTarget);
     if (!target) return;
