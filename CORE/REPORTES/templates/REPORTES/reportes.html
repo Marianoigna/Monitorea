@@ -1,6 +1,6 @@
 ﻿{% extends 'base.html' %}
 
-{% block title %}Monitorea â€” Reportes{% endblock %}
+{% block title %}Monitorea — Reportes{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -13,28 +13,26 @@
 {% block content %}
 <div class="container-fluid px-4 py-4">
 
-  {# â”€â”€ Header â”€â”€ #}
+  {# Header #}
   <div class="d-flex align-items-center mb-4 gap-2">
     <i class="bi bi-bar-chart-line fs-4 text-primary"></i>
-    <h4 class="fw-bold mb-0">Reportes histÃ³ricos</h4>
+    <h4 class="fw-bold mb-0">Reportes históricos</h4>
     <span class="text-body-secondary small fw-normal">{{ request.user.empresa }}</span>
   </div>
 
-  {# â”€â”€ Sin dispositivos â”€â”€ #}
+  {# Sin dispositivos #}
   {% if not dispositivos %}
   <div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
     <i class="bi bi-cpu fs-1 text-body-secondary mb-3"></i>
-    <h5 class="fw-semibold mb-1">No tenÃ©s dispositivos registrados</h5>
-    <p class="text-body-secondary mb-4">RegistrÃ¡ un establecimiento y dispositivo desde el Dashboard para empezar.</p>
+    <h5 class="fw-semibold mb-1">No tienes dispositivos registrados</h5>
+    <p class="text-body-secondary mb-4">Registra un establecimiento y un dispositivo desde el Dashboard para empezar.</p>
     <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary">
       <i class="bi bi-speedometer2 me-1"></i>Ir al Dashboard
     </a>
   </div>
   {% else %}
 
-  {# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     FORMULARIO DE FILTROS
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• #}
+  {# FORMULARIO DE FILTROS #}
   <div class="card border mb-4">
     <div class="card-header d-flex align-items-center gap-2 py-2">
       <i class="bi bi-funnel text-primary"></i>
@@ -44,41 +42,41 @@
       <form id="form-reporte" class="row g-3 align-items-end">
         {% csrf_token %}
 
-        {# â”€â”€ Dispositivo â”€â”€ #}
+        {# Dispositivo #}
         <div class="col-12 col-md-4 col-lg-3">
           <label for="sel-dispositivo" class="form-label small fw-semibold">Dispositivo</label>
           <select id="sel-dispositivo" class="form-select" required>
-            <option value="">â€” SeleccionÃ¡ un dispositivo â€”</option>
+            <option value="">— Selecciona un dispositivo —</option>
             {% for disp in dispositivos %}
             <option value="{{ disp.mac_address }}"
                     data-sensores='[{% for s in disp.sensores.all %}{"tipo":"{{ s.tipo_sensor }}","canal":{{ s.canal }},"nombre":"{{ s.nombre_personalizado }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
-              {{ disp.establecimiento.nombre }} â€” {{ disp.nombre }}
+              {{ disp.establecimiento.nombre }} — {{ disp.nombre }}
             </option>
             {% endfor %}
           </select>
         </div>
 
-        {# â”€â”€ Sensor (dinÃ¡mico) â”€â”€ #}
+        {# Sensor (dinámico) #}
         <div class="col-12 col-md-4 col-lg-3">
           <label for="sel-sensor" class="form-label small fw-semibold">Sensor</label>
           <select id="sel-sensor" class="form-select" required disabled>
-            <option value="">â€” Primero elegÃ­ un dispositivo â€”</option>
+            <option value="">— Primero selecciona un dispositivo —</option>
           </select>
         </div>
 
-        {# â”€â”€ Fecha Inicio â”€â”€ #}
+        {# Fecha Inicio #}
         <div class="col-6 col-md-2">
           <label for="inp-desde" class="form-label small fw-semibold">Fecha Inicio</label>
           <input type="date" id="inp-desde" class="form-control" required>
         </div>
 
-        {# â”€â”€ Fecha Fin â”€â”€ #}
+        {# Fecha Fin #}
         <div class="col-6 col-md-2">
           <label for="inp-hasta" class="form-label small fw-semibold">Fecha Fin</label>
           <input type="date" id="inp-hasta" class="form-control" required>
         </div>
 
-        {# â”€â”€ Acciones â”€â”€ #}
+        {# Acciones #}
         <div class="col-12 col-lg-2 d-flex gap-2">
           <button type="submit" class="btn btn-primary flex-fill">
             <i class="bi bi-graph-up me-1"></i>Generar Reporte
@@ -92,27 +90,25 @@
     </div>
   </div>
 
-  {# â”€â”€ Spinner â”€â”€ #}
+  {# Spinner #}
   <div id="spinner" class="d-none text-center py-5">
     <div class="spinner-border text-primary" role="status" style="width:2.5rem;height:2.5rem;">
       <span class="visually-hidden">Cargando...</span>
     </div>
-    <p class="text-body-secondary mt-3 small">Generando reporteâ€¦</p>
+    <p class="text-body-secondary mt-3 small">Generando reporte…</p>
   </div>
 
-  {# â”€â”€ Error â”€â”€ #}
+  {# Error #}
   <div id="panel-error" class="alert alert-warning alert-dismissible d-none" role="alert">
     <i class="bi bi-exclamation-triangle me-2"></i>
     <span id="msg-error"></span>
     <button type="button" class="btn-close" onclick="this.closest('.alert').classList.add('d-none')"></button>
   </div>
 
-  {# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     LAYOUT DE RESULTADOS  (col-md-9 grÃ¡fico | col-md-3 stats)
-  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• #}
+  {# LAYOUT DE RESULTADOS (col-md-9 gráfico | col-md-3 stats) #}
   <div id="panel-resultados" class="d-none">
 
-    {# TÃ­tulo del reporte activo #}
+    {# Título del reporte activo #}
     <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
       <i class="bi bi-bar-chart-fill text-primary"></i>
       <span id="lbl-resumen" class="fw-semibold"></span>
@@ -121,12 +117,12 @@
 
     <div class="row g-4">
 
-      {# â”€â”€ Columna izquierda: grÃ¡fico â”€â”€ #}
+      {# Columna izquierda: gráfico #}
       <div class="col-md-9">
         <div class="card border h-100">
           <div class="card-header d-flex align-items-center gap-2 py-2">
             <i class="bi bi-graph-up text-primary"></i>
-            <span class="fw-semibold">EvoluciÃ³n temporal</span>
+            <span class="fw-semibold">Evolución temporal</span>
           </div>
           <div class="card-body">
             <canvas id="chart-reporte"></canvas>
@@ -134,23 +130,23 @@
         </div>
       </div>
 
-      {# â”€â”€ Columna derecha: estadÃ­sticas + CSV â”€â”€ #}
+      {# Columna derecha: estadísticas + CSV #}
       <div class="col-md-3 d-flex flex-column gap-3">
 
-        {# MÃ¡ximo #}
+        {# Máximo #}
         <div class="card border stat-card text-center">
           <div class="card-body py-3">
-            <p class="stat-label text-body-secondary mb-1">Valor MÃ¡ximo</p>
-            <p class="stat-value text-danger mb-0" id="stat-max">â€”</p>
+            <p class="stat-label text-body-secondary mb-1">Valor Máximo</p>
+            <p class="stat-value text-danger mb-0" id="stat-max">—</p>
             <small id="stat-max-ts" class="text-body-secondary"></small>
           </div>
         </div>
 
-        {# MÃ­nimo #}
+        {# Mínimo #}
         <div class="card border stat-card text-center">
           <div class="card-body py-3">
-            <p class="stat-label text-body-secondary mb-1">Valor MÃ­nimo</p>
-            <p class="stat-value text-primary mb-0" id="stat-min">â€”</p>
+            <p class="stat-label text-body-secondary mb-1">Valor Mínimo</p>
+            <p class="stat-value text-primary mb-0" id="stat-min">—</p>
             <small id="stat-min-ts" class="text-body-secondary"></small>
           </div>
         </div>
@@ -159,7 +155,7 @@
         <div class="card border stat-card text-center">
           <div class="card-body py-3">
             <p class="stat-label text-body-secondary mb-1">Promedio</p>
-            <p class="stat-value text-success mb-0" id="stat-avg">â€”</p>
+            <p class="stat-value text-success mb-0" id="stat-avg">—</p>
             <small id="stat-unidad" class="text-body-secondary"></small>
           </div>
         </div>
@@ -175,7 +171,7 @@
     </div>
     {# /row #}
 
-    {# â”€â”€ Tabla de lecturas â”€â”€ #}
+    {# Tabla de lecturas #}
     <div class="card border mt-4">
       <div class="card-header d-flex align-items-center gap-2 py-2">
         <i class="bi bi-table text-primary"></i>
@@ -198,8 +194,6 @@
     </div>
 
   </div>
-  {# /panel-resultados #}
-
   {% endif %}
 </div>
 {% endblock %}
@@ -209,7 +203,7 @@
 (function () {
   'use strict';
 
-  // â”€â”€ Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Constantes
   const URL_DATOS    = "{% url 'reportes:obtener_datos_reporte' %}";
   const URL_EXPORTAR = "{% url 'reportes:exportar_csv' %}";
   const CSRF         = '{{ csrf_token }}';
@@ -222,7 +216,7 @@
     presion:     { border: '#6c757d', bg: 'rgba(108,117,125,0.12)' },
   };
 
-  // â”€â”€ Referencias DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Referencias DOM
   const selDispositivo  = document.getElementById('sel-dispositivo');
   const selSensor       = document.getElementById('sel-sensor');
   const inpDesde        = document.getElementById('inp-desde');
@@ -247,7 +241,7 @@
 
   let chartInstance = null;
 
-  // â”€â”€ Fechas por defecto: Ãºltimos 7 dÃ­as â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Fechas por defecto: últimos 7 días
   (function () {
     const hoy   = new Date();
     const hace7 = new Date();
@@ -256,10 +250,10 @@
     inpHasta.value = hoy.toISOString().slice(0, 10);
   })();
 
-  // â”€â”€ Cargar sensores al cambiar de dispositivo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Cargar sensores al cambiar de dispositivo
   selDispositivo.addEventListener('change', function () {
     const opt = this.options[this.selectedIndex];
-    selSensor.innerHTML = '<option value="">â€” SeleccionÃ¡ un sensor â€”</option>';
+    selSensor.innerHTML = '<option value="">— Selecciona un sensor —</option>';
     selSensor.disabled  = true;
     ocultarResultados();
 
@@ -282,19 +276,19 @@
     selSensor.disabled = false;
   });
 
-  // â”€â”€ Submit: generar reporte â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Submit: generar reporte
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     ocultarResultados();
 
     const mac = selDispositivo.value;
-    if (!mac) { mostrarError('SeleccionÃ¡ un dispositivo.'); return; }
+    if (!mac) { mostrarError('Selecciona un dispositivo.'); return; }
 
     let sensorData;
     try {
       sensorData = JSON.parse(selSensor.value);
     } catch (_) {
-      mostrarError('SeleccionÃ¡ un sensor.'); return;
+      mostrarError('Selecciona un sensor.'); return;
     }
 
     const params = new URLSearchParams({
@@ -321,16 +315,16 @@
       renderResultados(data, params);
 
     } catch (_) {
-      mostrarError('Error de red. VerificÃ¡ la conexiÃ³n e intentÃ¡ nuevamente.');
+      mostrarError('Error de red. Verifica la conexión e intenta nuevamente.');
     } finally {
       mostrarSpinner(false);
     }
   });
 
-  // â”€â”€ Limpiar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Limpiar
   btnLimpiar.addEventListener('click', function () {
     form.reset();
-    selSensor.innerHTML = '<option value="">â€” Primero elegÃ­ un dispositivo â€”</option>';
+    selSensor.innerHTML = '<option value="">— Primero selecciona un dispositivo —</option>';
     selSensor.disabled  = true;
     // Restaurar fechas por defecto
     const hoy   = new Date();
@@ -341,12 +335,12 @@
     ocultarResultados();
   });
 
-  // â”€â”€ Descargar CSV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Descargar CSV
   btnExportar.addEventListener('click', function () {
     window.location.href = this.dataset.url;
   });
 
-  // â”€â”€ Renderizar resultados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Renderizar
   function renderResultados(data, params) {
     if (!data.lecturas || !data.lecturas.length) {
       mostrarError('No hay lecturas para los filtros seleccionados.');
@@ -356,7 +350,7 @@
     const lecturas = data.lecturas;
     const valores  = lecturas.map(function (l) { return l.valor; });
 
-    // â”€â”€ EstadÃ­sticas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Estadísticas
     const maxVal = Math.max.apply(null, valores);
     const minVal = Math.min.apply(null, valores);
     const avg    = valores.reduce(function (a, b) { return a + b; }, 0) / valores.length;
@@ -371,17 +365,17 @@
     statAvg.textContent    = avg.toFixed(2);
     statUnidad.textContent = data.unidad;
 
-    // â”€â”€ URL de exportaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // URL de exportación
     btnExportar.dataset.url = URL_EXPORTAR + '?' + params.toString();
 
-    // â”€â”€ Resumen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Resumen
     lblResumen.textContent =
-      data.dispositivo + ' Â· ' + data.unidad + ' Â· ' +
-      data.fecha_inicio + ' â†’ ' + data.fecha_fin;
+      data.dispositivo + ' • ' + data.unidad + ' • ' +
+      data.fecha_inicio + ' → ' + data.fecha_fin;
     badgeTotal.textContent = data.total + ' registros';
     badgeTabla.textContent = data.total + ' filas';
 
-    // â”€â”€ GrÃ¡fico â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Gráfico
     const labels = lecturas.map(function (l) {
       return l.timestamp.replace('T', ' ').slice(0, 16);
     });
@@ -428,7 +422,7 @@
       }
     );
 
-    // â”€â”€ Tabla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Tabla
     tablaBody.innerHTML = '';
     lecturas.slice().reverse().forEach(function (l) {
       const tr = document.createElement('tr');
@@ -443,7 +437,7 @@
     panelResultados.classList.remove('d-none');
   }
 
-  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Helpers
   function mostrarSpinner(show) {
     spinner.classList.toggle('d-none', !show);
   }
