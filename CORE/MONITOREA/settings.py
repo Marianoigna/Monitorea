@@ -161,7 +161,7 @@ MERCADOPAGO_BACK_URL     = os.environ.get('MERCADOPAGO_BACK_URL', 'http://127.0.
 
 # ── CSRF ─────────────────────────────────────────────────────
 CSRF_TRUSTED_ORIGINS = os.environ.get(
-    'CSRF_TRUSTED_ORIGINS', 'http://localhost:8000'
+    'CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,https://monitorea-v2.onrender.com'
 ).split(',')
 
 # ── Django REST Framework ─────────────────────────────────────
