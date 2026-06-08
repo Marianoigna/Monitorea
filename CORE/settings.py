@@ -136,3 +136,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ]
 }
+# Permitir que Django acepte peticiones desde tu nueva URL de Render
+CSRF_TRUSTED_ORIGINS = [
+    'https://monitorea-v2.onrender.com',
+]
