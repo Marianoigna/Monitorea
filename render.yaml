@@ -16,6 +16,10 @@
       - key: ALLOWED_HOSTS
         value: "*"
       - key: CSRF_TRUSTED_ORIGINS
-        value: "https://monitorea-v2.onrender.com"
+        value: "https://monitorea.onrender.com"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: monitorea_db
+          property: connectionString
       - key: PYTHON_VERSION
         value: "3.12.0"
