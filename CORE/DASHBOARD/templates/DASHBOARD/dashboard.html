@@ -333,47 +333,55 @@
     };
   }
 
-  // ── Pre-carga histórica ───────────────────────────────────────────────────
-
-  // Lista de sensores configurados (generada por Django)
-  const SENSORES = [
-    {% for estab in establecimientos %}{% for disp in estab.dispositivos.all %}{% for sensor in disp.sensores.all %}
-    { mac: "{{ disp.mac_address }}", tipo: "{{ sensor.tipo_sensor }}", canal: {{ sensor.canal }} },
-    {% endfor %}{% endfor %}{% endfor %}
-  ];
+  // ── Pre-carga histórica desde la DB ────────────────────────────────────────
 
   async function cargarHistorial(mac, tipo, canal) {
-    const slug     = macSlug(mac);
-    const canvasId = `chart-${slug}-${tipo}-${canal}`;
-    const color    = tipo === 'temperatura' ? '#0d6efd' : '#198754';
-    const url      = `/api/telemetria/${mac}/historial/?tipo=${tipo}&canal=${canal}`;
+    const slug  = macSlug(mac);
+    const s     = `${slug}-${tipo}-${canal}`;
+    const color = tipo === 'temperatura' ? '#0d6efd' : '#198754';
+
+    // Crear widget dinámicamente si todavía no existe en el DOM
+    let valEl = document.getElementById('val-' + s);
+    if (!valEl) valEl = ensureSensorWidget(mac, slug, tipo, canal);
+    if (!valEl) return;
+
+    const url = `/api/telemetria/${mac}/historial/?tipo=${tipo}&canal=${canal}`;
     try {
       const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       if (!data.lecturas || data.lecturas.length === 0) return;
 
-      const chart = getOrCreateChart(canvasId, color);
+      const chart = getOrCreateChart('chart-' + s, color);
       if (!chart) return;
 
-      // Poblar el gráfico con los datos históricos
       data.lecturas.forEach(({ valor, timestamp }) => {
         chart.data.labels.push(timestamp);
         chart.data.datasets[0].data.push(valor);
       });
       chart.update('none');  // sin animación para la carga inicial
 
-      // Mostrar el último valor en el indicador numérico
       const last = data.lecturas[data.lecturas.length - 1];
-      const el   = document.getElementById(`val-${slug}-${tipo}-${canal}`);
-      if (el) el.textContent = parseFloat(last.valor).toFixed(1);
+      valEl.textContent = parseFloat(last.valor).toFixed(1);
     } catch (e) {
       console.warn('historial error:', mac, tipo, canal, e);
     }
   }
 
-  // Lanzar la pre-carga de todos los sensores al cargar la página
-  SENSORES.forEach(({ mac, tipo, canal }) => cargarHistorial(mac, tipo, canal));
+  // Para cada dispositivo en el DOM, consulta la DB y pre-carga historial
+  async function cargarSensoresActivos(mac) {
+    try {
+      const res = await fetch(`/api/telemetria/${mac}/sensores-activos/`);
+      if (!res.ok) return;
+      const data = await res.json();
+      (data.sensores || []).forEach(({ tipo, canal }) => cargarHistorial(mac, tipo, canal));
+    } catch (e) {
+      console.warn('sensores activos error:', mac, e);
+    }
+  }
+
+  // Pre-carga al abrir la página
+  document.querySelectorAll('[data-mac]').forEach(el => cargarSensoresActivos(el.dataset.mac));
 
   connectWS();
 

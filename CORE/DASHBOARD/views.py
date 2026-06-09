@@ -148,6 +148,33 @@ class TelemetriaAPIView(APIView):
 # ── API Historial Telemetría ───────────────────────────────────────────────────
 
 @login_required
+def sensores_activos(request, mac):
+    """
+    GET /api/telemetria/<mac>/sensores-activos/
+    Devuelve los tipos de sensor y canales que tienen datos reales en la DB para este dispositivo.
+    """
+    mac = mac.upper()
+    try:
+        disp = Dispositivo.objects.select_related('establecimiento__usuario').get(mac_address=mac)
+    except Dispositivo.DoesNotExist:
+        return JsonResponse({'error': 'Dispositivo no encontrado'}, status=404)
+
+    if disp.establecimiento.usuario != request.user:
+        return JsonResponse({'error': 'Sin acceso'}, status=403)
+
+    sensores = list(
+        Telemetria.objects
+        .filter(dispositivo=disp)
+        .values('tipo_sensor', 'canal')
+        .distinct()
+        .order_by('tipo_sensor', 'canal')
+    )
+    return JsonResponse({
+        'sensores': [{'tipo': s['tipo_sensor'], 'canal': s['canal']} for s in sensores]
+    })
+
+
+@login_required
 def historial_telemetria(request, mac):
     """
     GET /api/telemetria/<mac>/historial/?tipo=temperatura&canal=0
