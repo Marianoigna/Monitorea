@@ -5,7 +5,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from DASHBOARD.models import Dispositivo, Telemetria
+from DASHBOARD.models import Dispositivo, Establecimiento, Telemetria
 from SUSCRIPCIONES.decorators import requiere_premium
 
 TIPO_LABELS = {
@@ -21,20 +21,18 @@ TIPO_LABELS = {
 def index(request):
     """
     Vista principal de reportes.
-    Pasa al template la lista de dispositivos y sensores del usuario
+    Pasa al template los establecimientos con sus dispositivos
     para construir el formulario de filtros. Los datos se cargan vía AJAX.
     """
-    dispositivos = (
-        Dispositivo.objects
-        .filter(establecimiento__usuario=request.user)
-        .prefetch_related('sensores')
-        .select_related('establecimiento')
-        .order_by('establecimiento__nombre', 'nombre')
+    establecimientos = (
+        Establecimiento.objects
+        .filter(usuario=request.user)
+        .prefetch_related('dispositivos')
+        .order_by('nombre')
     )
 
     context = {
-        'dispositivos': dispositivos,
-        'tipo_labels':  TIPO_LABELS,
+        'establecimientos': establecimientos,
     }
     return render(request, 'REPORTES/reportes.html', context)
 
@@ -168,42 +166,6 @@ def exportar_csv(request):
     response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
 
     response.write('\ufeff')  # BOM para compatibilidad con Excel
-    writer = csv.writer(response)
-    writer.writerow(['Dispositivo', 'MAC', 'Tipo sensor', 'Canal', 'Valor', 'Timestamp'])
-
-    for l in lecturas:
-        writer.writerow([
-            l.dispositivo.nombre,
-            l.dispositivo.mac_address,
-            l.tipo_sensor,
-            l.canal,
-            l.valor,
-            timezone.localtime(l.timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-        ])
-
-    return response
-
-    if not fecha_desde:
-        fecha_desde = (hoy - timedelta(days=7)).strftime('%Y-%m-%d')
-    if not fecha_hasta:
-        fecha_hasta = hoy.strftime('%Y-%m-%d')
-
-    lecturas = Telemetria.objects.filter(
-        dispositivo__establecimiento__usuario=request.user,
-        timestamp__date__gte=fecha_desde,
-        timestamp__date__lte=fecha_hasta,
-    ).select_related('dispositivo').order_by('-timestamp')
-
-    if mac_sel:
-        lecturas = lecturas.filter(dispositivo__mac_address=mac_sel)
-    if tipo_sel:
-        lecturas = lecturas.filter(tipo_sensor=tipo_sel)
-
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    nombre_archivo = f'reporte_{fecha_desde}_{fecha_hasta}.csv'
-    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
-
-    response.write('\ufeff')  # BOM para que Excel abra con tildes correctas
     writer = csv.writer(response)
     writer.writerow(['Dispositivo', 'MAC', 'Tipo sensor', 'Canal', 'Valor', 'Timestamp'])
 

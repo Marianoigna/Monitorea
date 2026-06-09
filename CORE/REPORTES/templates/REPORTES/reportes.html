@@ -20,11 +20,11 @@
     <span class="text-body-secondary small fw-normal">{{ request.user.empresa }}</span>
   </div>
 
-  {# Sin dispositivos #}
-  {% if not dispositivos %}
+  {# Sin establecimientos #}
+  {% if not establecimientos %}
   <div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
-    <i class="bi bi-cpu fs-1 text-body-secondary mb-3"></i>
-    <h5 class="fw-semibold mb-1">No tienes dispositivos registrados</h5>
+    <i class="bi bi-building fs-1 text-body-secondary mb-3"></i>
+    <h5 class="fw-semibold mb-1">No tienes establecimientos registrados</h5>
     <p class="text-body-secondary mb-4">Registra un establecimiento y un dispositivo desde el Dashboard para empezar.</p>
     <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary">
       <i class="bi bi-speedometer2 me-1"></i>Ir al Dashboard
@@ -42,22 +42,30 @@
       <form id="form-reporte" class="row g-3 align-items-end">
         {% csrf_token %}
 
-        {# Dispositivo #}
-        <div class="col-12 col-md-4 col-lg-3">
-          <label for="sel-dispositivo" class="form-label small fw-semibold">Dispositivo</label>
-          <select id="sel-dispositivo" class="form-select" required>
-            <option value="">— Selecciona un dispositivo —</option>
-            {% for disp in dispositivos %}
-            <option value="{{ disp.mac_address }}"
-                    data-sensores='[{% for s in disp.sensores.all %}{"tipo":"{{ s.tipo_sensor }}","canal":{{ s.canal }},"nombre":"{{ s.nombre_personalizado }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
-              {{ disp.establecimiento.nombre }} — {{ disp.nombre }}
+        {# Establecimiento #}
+        <div class="col-12 col-md-4">
+          <label for="sel-establecimiento" class="form-label small fw-semibold">Establecimiento</label>
+          <select id="sel-establecimiento" class="form-select" required>
+            <option value="">— Selecciona un establecimiento —</option>
+            {% for estab in establecimientos %}
+            <option value="{{ estab.id }}"
+                    data-dispositivos='[{% for disp in estab.dispositivos.all %}{"mac":"{{ disp.mac_address }}","nombre":"{{ disp.nombre }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+              {{ estab.nombre }}
             </option>
             {% endfor %}
           </select>
         </div>
 
+        {# Dispositivo (dinámico) #}
+        <div class="col-12 col-md-4">
+          <label for="sel-dispositivo" class="form-label small fw-semibold">Dispositivo</label>
+          <select id="sel-dispositivo" class="form-select" required disabled>
+            <option value="">— Primero selecciona un establecimiento —</option>
+          </select>
+        </div>
+
         {# Sensor (dinámico) #}
-        <div class="col-12 col-md-4 col-lg-3">
+        <div class="col-12 col-md-4">
           <label for="sel-sensor" class="form-label small fw-semibold">Sensor</label>
           <select id="sel-sensor" class="form-select" required disabled>
             <option value="">— Primero selecciona un dispositivo —</option>
@@ -217,9 +225,10 @@
   };
 
   // Referencias DOM
-  const selDispositivo  = document.getElementById('sel-dispositivo');
-  const selSensor       = document.getElementById('sel-sensor');
-  const inpDesde        = document.getElementById('inp-desde');
+  const selEstablecimiento = document.getElementById('sel-establecimiento');
+  const selDispositivo     = document.getElementById('sel-dispositivo');
+  const selSensor          = document.getElementById('sel-sensor');
+  const inpDesde           = document.getElementById('inp-desde');
   const inpHasta        = document.getElementById('inp-hasta');
   const form            = document.getElementById('form-reporte');
   const btnLimpiar      = document.getElementById('btn-limpiar');
@@ -250,30 +259,76 @@
     inpHasta.value = hoy.toISOString().slice(0, 10);
   })();
 
-  // Cargar sensores al cambiar de dispositivo
-  selDispositivo.addEventListener('change', function () {
+  const TIPO_NOMBRES = {
+    temperatura: 'Temperatura (°C)',
+    tension:     'Tensión (V)',
+    corriente:   'Corriente (A)',
+    humedad:     'Humedad (%)',
+    presion:     'Presión (hPa)',
+  };
+
+  // Cargar dispositivos al cambiar de establecimiento
+  selEstablecimiento.addEventListener('change', function () {
     const opt = this.options[this.selectedIndex];
-    selSensor.innerHTML = '<option value="">— Selecciona un sensor —</option>';
+    selDispositivo.innerHTML = '<option value="">— Selecciona un dispositivo —</option>';
+    selDispositivo.disabled  = true;
+    selSensor.innerHTML = '<option value="">— Primero selecciona un dispositivo —</option>';
     selSensor.disabled  = true;
     ocultarResultados();
 
     if (!opt.value) return;
 
-    let sensores = [];
-    try { sensores = JSON.parse(opt.dataset.sensores || '[]'); } catch (_) {}
+    let dispositivos = [];
+    try { dispositivos = JSON.parse(opt.dataset.dispositivos || '[]'); } catch (_) {}
 
-    if (!sensores.length) {
-      selSensor.innerHTML = '<option value="">Sin sensores configurados</option>';
+    if (!dispositivos.length) {
+      selDispositivo.innerHTML = '<option value="">Sin dispositivos registrados</option>';
       return;
     }
 
-    sensores.forEach(function (s) {
+    dispositivos.forEach(function (d) {
       const o       = document.createElement('option');
-      o.value       = JSON.stringify({ tipo: s.tipo, canal: s.canal });
-      o.textContent = s.nombre + ' (' + s.tipo + ')';
-      selSensor.appendChild(o);
+      o.value       = d.mac;
+      o.textContent = d.nombre;
+      selDispositivo.appendChild(o);
     });
-    selSensor.disabled = false;
+    selDispositivo.disabled = false;
+  });
+
+  // Cargar sensores al cambiar de dispositivo (consulta DB vía API)
+  selDispositivo.addEventListener('change', async function () {
+    selSensor.innerHTML = '<option value="">Cargando sensores...</option>';
+    selSensor.disabled  = true;
+    ocultarResultados();
+
+    const mac = this.value;
+    if (!mac) {
+      selSensor.innerHTML = '<option value="">— Primero selecciona un dispositivo —</option>';
+      return;
+    }
+
+    try {
+      const res    = await fetch(`/api/telemetria/${mac}/sensores-activos/`);
+      const data   = await res.json();
+      const sensores = data.sensores || [];
+
+      if (!sensores.length) {
+        selSensor.innerHTML = '<option value="">Este dispositivo aún no tiene datos registrados</option>';
+        return;
+      }
+
+      selSensor.innerHTML = '<option value="">— Selecciona un sensor —</option>';
+      sensores.forEach(function (s) {
+        const tipoCount = sensores.filter(function (x) { return x.tipo === s.tipo; }).length;
+        const o         = document.createElement('option');
+        o.value         = JSON.stringify({ tipo: s.tipo, canal: s.canal });
+        o.textContent   = (TIPO_NOMBRES[s.tipo] || s.tipo) + (tipoCount > 1 ? ' — canal ' + s.canal : '');
+        selSensor.appendChild(o);
+      });
+      selSensor.disabled = false;
+    } catch (_) {
+      selSensor.innerHTML = '<option value="">Error al cargar sensores</option>';
+    }
   });
 
   // Submit: generar reporte
@@ -281,6 +336,7 @@
     e.preventDefault();
     ocultarResultados();
 
+    if (!selEstablecimiento.value) { mostrarError('Selecciona un establecimiento.'); return; }
     const mac = selDispositivo.value;
     if (!mac) { mostrarError('Selecciona un dispositivo.'); return; }
 
@@ -324,6 +380,8 @@
   // Limpiar
   btnLimpiar.addEventListener('click', function () {
     form.reset();
+    selDispositivo.innerHTML = '<option value="">— Primero selecciona un establecimiento —</option>';
+    selDispositivo.disabled  = true;
     selSensor.innerHTML = '<option value="">— Primero selecciona un dispositivo —</option>';
     selSensor.disabled  = true;
     // Restaurar fechas por defecto
