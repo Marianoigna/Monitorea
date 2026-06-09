@@ -23,9 +23,11 @@ def enviar_alerta_whatsapp(to_number: str, mensaje: str) -> bool:
         logger.warning('[ALERTAS] Credenciales Twilio no configuradas. Alerta no enviada.')
         return False
 
-    # Asegurarse de que el número destino tenga el prefijo whatsapp:
+    # Asegurarse de que ambos números tengan el prefijo whatsapp:
     if not to_number.startswith('whatsapp:'):
         to_number = f'whatsapp:{to_number}'
+    if not from_number.startswith('whatsapp:'):
+        from_number = f'whatsapp:{from_number}'
 
     try:
         from twilio.rest import Client  # import diferido — no rompe si twilio no está instalado

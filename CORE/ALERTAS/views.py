@@ -39,6 +39,8 @@ def enviar_alerta_whatsapp(to_number: str, mensaje: str) -> bool:
 
     if not to_number.startswith('whatsapp:'):
         to_number = f'whatsapp:{to_number}'
+    if not from_number.startswith('whatsapp:'):
+        from_number = f'whatsapp:{from_number}'
 
     try:
         client = Client(account_sid, auth_token)
