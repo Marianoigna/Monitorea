@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitorea — Política de Privacidad{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+
+      <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Política de Privacidad</li>
+        </ol>
+      </nav>
+
+      <h1 class="h2 fw-bold mb-1">Política de Privacidad</h1>
+      <p class="text-body-secondary small mb-4">Última actualización: 10 de junio de 2026</p>
+
+      <div class="card border shadow-sm">
+        <div class="card-body p-4 p-lg-5">
+
+          <p class="text-body-secondary">
+            En <strong>MONITOREA</strong>, accesible desde <a href="https://monitorea.onrender.com" target="_blank" rel="noopener noreferrer">https://monitorea.onrender.com</a>, una de nuestras principales prioridades es la privacidad de nuestros visitantes y usuarios. Este documento describe los tipos de información que recopilamos, cómo la utilizamos y las medidas que tomamos para protegerla.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">1. Información que Recopilamos</h2>
+          <p class="text-body-secondary">Para poder prestar el servicio de monitoreo IoT, recopilamos la siguiente información:</p>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>Datos de Registro (Información Personal):</strong> Al crear una cuenta, le solicitamos datos básicos como nombre de usuario, dirección de correo electrónico, contraseña (que se almacena de forma encriptada mediante algoritmos seguros de un solo sentido) y, opcionalmente, el nombre de su empresa.</li>
+            <li class="mb-2"><strong>Datos de Telemetría (Datos de Sensores):</strong> Recopilamos las lecturas enviadas por sus dispositivos físicos o simuladores. Esto incluye valores numéricos (temperatura, tensión, corriente, humedad, presión), identificadores de dispositivos (como direcciones MAC), nombres personalizados de sensores y marcas de tiempo (timestamps).</li>
+            <li class="mb-2"><strong>Datos de Configuración:</strong> Almacenamos la estructura que usted defina para su monitoreo, como nombres de establecimientos, umbrales mínimos y máximos de alertas y números de teléfono para el envío de notificaciones.</li>
+            <li><strong>Datos de Transacciones Financieras:</strong> Cuando contrata el Plan Premium, la transacción es gestionada por Mercado Pago. Nosotros solo recibimos de ellos una confirmación de pago (ID de transacción, estado del pago y monto) para activar su plan. Nunca almacenamos ni vemos los datos de sus tarjetas de crédito o cuentas bancarias.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">2. Cómo Utilizamos su Información</h2>
+          <p class="text-body-secondary">Utilizamos la información recopilada para las siguientes finalidades:</p>
+          <ul class="text-body-secondary">
+            <li class="mb-2">Proveer, operar y mantener nuestra Plataforma (visualización de dashboards en tiempo real).</li>
+            <li class="mb-2">Procesar y almacenar sus datos históricos de telemetría para generar los reportes a los que tiene acceso.</li>
+            <li class="mb-2">Evaluar las reglas de alerta que usted configure y enviarle notificaciones automáticas (por ejemplo, mensajes de WhatsApp) cuando sus sensores superen los límites establecidos.</li>
+            <li class="mb-2">Procesar la activación y renovación de su suscripción Premium.</li>
+            <li class="mb-2">Enviar correos electrónicos relacionados con el estado de su cuenta, soporte técnico o actualizaciones importantes de seguridad.</li>
+            <li>Detectar, prevenir y abordar problemas técnicos o actividades fraudulentas.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">3. Compartición de Datos con Terceros</h2>
+          <p class="text-body-secondary">No vendemos, alquilamos ni comercializamos sus datos personales con terceros. Sin embargo, para que la Plataforma funcione, nos apoyamos en los siguientes proveedores de servicios esenciales, quienes procesan datos bajo estrictas normas de confidencialidad:</p>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>Mercado Pago:</strong> Para procesar de forma segura los pagos de suscripciones.</li>
+            <li class="mb-2"><strong>Twilio:</strong> Para el envío de mensajes de alerta automatizados a su teléfono móvil a través de WhatsApp o SMS.</li>
+            <li><strong>Render.com:</strong> Proveedor de infraestructura de servidores y bases de datos donde se aloja nuestra aplicación y se transmiten los mensajes MQTT cifrados.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">4. Seguridad de los Datos</h2>
+          <p class="text-body-secondary">Implementamos medidas de seguridad técnicas y organizativas para proteger sus datos personales y de telemetría:</p>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>Cifrado en tránsito (SSL/HTTPS):</strong> Toda la comunicación entre su navegador, sus sensores y nuestros servidores web y WebSockets se realiza utilizando canales cifrados seguros (HTTPS y WSS).</li>
+            <li><strong>Aislamiento Multiusuario:</strong> El sistema está diseñado para que los datos de sus dispositivos solo sean accesibles por las credenciales de su cuenta de usuario autorizada.</li>
+          </ul>
+          <p class="text-body-secondary">Sin embargo, tenga en cuenta que ningún método de transmisión por Internet o método de almacenamiento electrónico es 100% seguro, por lo que no podemos garantizar una seguridad absoluta.</p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">5. Sus Derechos de Privacidad (Derechos ARCO)</h2>
+          <p class="text-body-secondary">Usted tiene derecho a:</p>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>Acceder</strong> a los datos personales y de telemetría que tenemos almacenados sobre usted.</li>
+            <li class="mb-2"><strong>Rectificar</strong> cualquier información inexacta o incompleta desde su perfil de usuario.</li>
+            <li><strong>Solicitar la eliminación</strong> de su cuenta y de todos los datos históricos asociados a sus sensores. Puede ejercer este derecho enviando una solicitud a nuestro correo de contacto.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">6. Retención de Datos</h2>
+          <p class="text-body-secondary">
+            Conservaremos sus datos personales y lecturas de telemetría únicamente durante el tiempo que sea necesario para cumplir con los fines establecidos en esta Política de Privacidad, o hasta que usted solicite la eliminación de su cuenta.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">7. Cambios en esta Política de Privacidad</h2>
+          <p class="text-body-secondary">
+            Es posible que actualicemos nuestra Política de Privacidad periódicamente. Le recomendamos revisar esta página de forma regular para estar al tanto de cualquier cambio. Los cambios entrarán en vigor inmediatamente después de su publicación en esta página.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">8. Contacto</h2>
+          <p class="text-body-secondary">
+            Si tiene alguna pregunta o sugerencia sobre nuestra Política de Privacidad, no dude en contactarnos en:
+            <a href="mailto:soporte@monitorea.com">soporte@monitorea.com</a>.
+          </p>
+
+        </div>
+      </div>
+
+      <div class="mt-4 d-flex gap-3">
+        <a href="{% url 'terminos' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-file-text me-1"></i>Términos y Condiciones
+        </a>
+        <a href="/" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left me-1"></i>Volver al inicio
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

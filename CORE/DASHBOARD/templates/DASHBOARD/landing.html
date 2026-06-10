@@ -87,7 +87,10 @@
 
 {# ── Footer ── #}
 <footer class="border-top py-3 text-center text-body-secondary small">
-  &copy; 2026 Monitorea
+  &copy; 2026 Monitorea &mdash;
+  <a href="{% url 'terminos' %}" class="text-body-secondary text-decoration-none ms-2">Términos y Condiciones</a>
+  <span class="mx-1">&middot;</span>
+  <a href="{% url 'privacidad' %}" class="text-body-secondary text-decoration-none">Política de Privacidad</a>
 </footer>
 
 {% endblock %}

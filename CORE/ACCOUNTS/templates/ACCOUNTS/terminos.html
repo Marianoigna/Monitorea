@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitorea — Términos y Condiciones{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+
+      <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Términos y Condiciones</li>
+        </ol>
+      </nav>
+
+      <h1 class="h2 fw-bold mb-1">Términos y Condiciones de Uso</h1>
+      <p class="text-body-secondary small mb-4">Última actualización: 10 de junio de 2026</p>
+
+      <div class="card border shadow-sm">
+        <div class="card-body p-4 p-lg-5">
+
+          <p class="text-body-secondary">
+            Bienvenido a <strong>MONITOREA</strong> (en adelante, "la Plataforma"), un servicio de monitoreo de sensores IoT en tiempo real provisto por <strong>Monitorea.srl</strong> (en adelante, "el Proveedor").
+          </p>
+          <p class="text-body-secondary">
+            Al registrarse y utilizar nuestro sitio web <a href="https://monitorea.onrender.com" target="_blank" rel="noopener noreferrer">https://monitorea.onrender.com</a> y sus servicios relacionados, usted (en adelante, "el Usuario") acepta cumplir y estar sujeto a los siguientes Términos y Condiciones de Uso. Si no está de acuerdo con alguna parte de estos términos, no deberá utilizar la Plataforma.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">1. Descripción del Servicio</h2>
+          <p class="text-body-secondary">
+            MONITOREA es una plataforma multiusuario basada en la nube que permite la recepción, almacenamiento, visualización en tiempo real y análisis histórico de datos provenientes de dispositivos físicos de telemetría (sensores de temperatura, tensión, corriente, humedad, presión, etc.) de propiedad del Usuario, utilizando protocolos de comunicación como MQTT y WebSockets.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">2. Registro de Cuenta y Seguridad</h2>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>Registro:</strong> Para utilizar la Plataforma, el Usuario debe crear una cuenta proporcionando datos verídicos, exactos y actualizados.</li>
+            <li class="mb-2"><strong>Seguridad de las credenciales:</strong> El Usuario es el único responsable de mantener la confidencialidad de sus credenciales de acceso (usuario y contraseña) y de todas las actividades que ocurran bajo su cuenta.</li>
+            <li><strong>Aislamiento de datos:</strong> La Plataforma garantiza que los datos de los dispositivos de cada usuario están lógicamente aislados de otros usuarios mediante estrictos controles de acceso a nivel de base de datos y WebSockets.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">3. Planes, Precios y Suscripciones</h2>
+          <p class="text-body-secondary">La Plataforma ofrece dos niveles de acceso:</p>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>Plan Gratuito:</strong> Permite el acceso al dashboard en tiempo real para visualizar sensores activos. No incluye reportes históricos ni configuración de alertas.</li>
+            <li class="mb-2"><strong>Plan Premium:</strong> Mediante el pago de una suscripción mensual de $29.999 ARS (o el valor vigente publicado en la sección de Planes), el Usuario accede a funciones avanzadas que incluyen: reportes históricos con filtros, exportación de datos en formato CSV y configuración de alertas de umbrales con notificaciones de WhatsApp.</li>
+            <li><strong>Actualizaciones de precios:</strong> El Proveedor se reserva el derecho de modificar las tarifas de los planes en cualquier momento, lo cual será notificado al Usuario con al menos 30 días de anticipación.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">4. Pasarela de Pagos (Mercado Pago)</h2>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>Procesamiento de pagos:</strong> Los pagos de la suscripción Premium se procesan de forma segura a través de la pasarela de pagos Mercado Pago.</li>
+            <li class="mb-2"><strong>Datos financieros:</strong> El Proveedor no almacena, procesa ni tiene acceso a los datos de las tarjetas de crédito o débito del Usuario. Toda la transacción ocurre dentro de los servidores seguros de Mercado Pago.</li>
+            <li><strong>Facturación y Cancelación:</strong> La suscripción se factura periódicamente. El Usuario puede cancelar su suscripción Premium en cualquier momento desde su panel de usuario. La cancelación evitará el próximo cobro, pero no dará derecho a reembolsos por periodos ya facturados y utilizados.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">5. Responsabilidad sobre el Hardware y la Conectividad</h2>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>Equipos del Usuario:</strong> El Usuario es el único responsable de la adquisición, instalación, configuración y mantenimiento de sus sensores físicos (ej. ESP32, simuladores MQTTX, etc.) y de asegurar su correcta conexión a internet.</li>
+            <li><strong>Broker MQTT:</strong> La Plataforma puede utilizar brokers de mensajería externos (como EMQ X u otros proveedores de infraestructura) para el tránsito de datos de telemetría. El Proveedor no se hace responsable por interrupciones del servicio ajenas a su control directo.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">6. Limitación de Responsabilidad</h2>
+          <ul class="text-body-secondary">
+            <li class="mb-2"><strong>No apto para sistemas críticos de soporte vital o seguridad extrema:</strong> La Plataforma se ofrece "tal cual" y "según disponibilidad". Aunque nos esforzamos por mantener una alta disponibilidad y precisión, MONITOREA no debe ser utilizada como el único sistema de seguridad o alerta en entornos donde una falla del sistema pueda causar daños materiales graves, pérdidas financieras directas o poner en riesgo la vida humana o animal (por ejemplo, cámaras de frío médico críticas, alarmas de incendio principales, etc.).</li>
+            <li class="mb-2"><strong>Fallas en las notificaciones:</strong> El envío de alertas depende de servicios de terceros (como Twilio para WhatsApp y redes de telefonía móvil). El Proveedor no garantiza la entrega inmediata ni el 100% de efectividad de las alertas en caso de caídas de red de estos proveedores externos.</li>
+            <li><strong>Límite de indemnización:</strong> En ningún caso el Proveedor será responsable por daños indirectos, incidentales o consecuentes (incluyendo pérdida de stock, mercadería congelada dañada, lucro cesante o pérdida de datos) derivados del uso o la imposibilidad de uso de la Plataforma.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">7. Modificaciones del Servicio y de los Términos</h2>
+          <p class="text-body-secondary">
+            El Proveedor se reserva el derecho de modificar o discontinuar, temporal o permanentemente, el servicio (o cualquier parte del mismo) con o sin previo aviso. Asimismo, podremos actualizar estos Términos y Condiciones en el futuro. El uso continuado de la Plataforma tras dichos cambios constituirá la aceptación de los nuevos términos.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">8. Contacto</h2>
+          <p class="text-body-secondary">
+            Para cualquier duda o consulta respecto a estos Términos y Condiciones, puede comunicarse con nosotros a:
+            <a href="mailto:soporte@monitorea.com">soporte@monitorea.com</a>.
+          </p>
+
+        </div>
+      </div>
+
+      <div class="mt-4 d-flex gap-3">
+        <a href="{% url 'privacidad' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-shield-check me-1"></i>Política de Privacidad
+        </a>
+        <a href="/" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left me-1"></i>Volver al inicio
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -99,6 +99,19 @@
               {% endif %}
             </div>
 
+            <div class="mb-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="aceptar_terminos" name="aceptar_terminos" required>
+                <label class="form-check-label small" for="aceptar_terminos">
+                  Acepto los
+                  <a href="{% url 'terminos' %}" class="text-primary fw-semibold" target="_blank" rel="noopener noreferrer">Términos y Condiciones</a>
+                  y la
+                  <a href="{% url 'privacidad' %}" class="text-primary fw-semibold" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>
+                  de MONITOREA.
+                </label>
+              </div>
+            </div>
+
             <div class="d-grid">
               <button type="submit" class="btn btn-primary fw-semibold">
                 <i class="bi bi-person-plus me-2"></i>Crear cuenta
