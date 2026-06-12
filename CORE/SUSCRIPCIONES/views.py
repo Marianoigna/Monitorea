@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -195,10 +196,11 @@ def checkout_pro_prueba(request):
             }
         ],
         "back_urls": {
-            "success": settings.MERCADOPAGO_BACK_URL + "suscripciones/pago-exitoso/",
-            "failure": settings.MERCADOPAGO_BACK_URL + "suscripciones/pago-fallido/",
-            "pending": settings.MERCADOPAGO_BACK_URL + "suscripciones/pago-pendiente/",
+            "success": request.build_absolute_uri(reverse('suscripciones:pago_exitoso')),
+            "failure": request.build_absolute_uri(reverse('suscripciones:pago_fallido')),
+            "pending": request.build_absolute_uri(reverse('suscripciones:pago_pendiente')),
         },
+        "auto_return": "approved",
         "payer": {
             "email": request.user.email,
         },
@@ -215,28 +217,15 @@ def checkout_pro_prueba(request):
 
 
 def pago_exitoso(request):
-    """MP redirige aquí cuando el pago de prueba fue aprobado."""
-    return HttpResponse(
-        "<h2 style='font-family:sans-serif;color:green'>\u2705 ¡Pago aprobado!</h2>"
-        "<p style='font-family:sans-serif'>MercadoPago registró la prueba de Checkout Pro correctamente.<br>"
-        "Volvé al panel de MP y actualizá la página — el contador debería subir al 100%.</p>"
-        "<a style='font-family:sans-serif' href='/'>Volver al dashboard</a>"
-    )
+    """MP redirige aquí cuando el pago fue aprobado — vuelve al dashboard."""
+    return redirect('dashboard:dashboard')
 
 
 def pago_fallido(request):
-    """MP redirige aquí cuando el pago falló."""
-    return HttpResponse(
-        "<h2 style='font-family:sans-serif;color:red'>\u274c Pago rechazado</h2>"
-        "<p style='font-family:sans-serif'>Revisá los datos de la tarjeta de prueba e intentá de nuevo.</p>"
-        "<a style='font-family:sans-serif' href='/suscripciones/checkout-prueba/'>Reintentar</a>"
-    )
+    """MP redirige aquí cuando el pago falló — vuelve a la página de planes."""
+    return redirect('suscripciones:planes')
 
 
 def pago_pendiente(request):
-    """MP redirige aquí cuando el pago quedó pendiente."""
-    return HttpResponse(
-        "<h2 style='font-family:sans-serif;color:orange'>\u23f3 Pago pendiente</h2>"
-        "<p style='font-family:sans-serif'>El pago está siendo procesado por MercadoPago.</p>"
-        "<a style='font-family:sans-serif' href='/'>Volver al dashboard</a>"
-    )
+    """MP redirige aquí cuando el pago quedó pendiente — vuelve al dashboard."""
+    return redirect('dashboard:dashboard')
