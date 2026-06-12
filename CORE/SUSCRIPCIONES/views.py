@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import timedelta
+from urllib.parse import urlparse
 
 import mercadopago
 import requests
@@ -186,6 +187,12 @@ def checkout_pro_prueba(request):
     """
     sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
 
+    # Construir base URL pública desde MERCADOPAGO_BACK_URL para que MP acepte las back_urls.
+    # request.build_absolute_uri devuelve localhost en dev, que MP rechaza con auto_return.
+    _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
+    _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
+    _is_public = _parsed.hostname not in ('localhost', '127.0.0.1', '0.0.0.0')
+
     preference_data = {
         "items": [
             {
@@ -196,15 +203,18 @@ def checkout_pro_prueba(request):
             }
         ],
         "back_urls": {
-            "success": request.build_absolute_uri(reverse('suscripciones:pago_exitoso')),
-            "failure": request.build_absolute_uri(reverse('suscripciones:pago_fallido')),
-            "pending": request.build_absolute_uri(reverse('suscripciones:pago_pendiente')),
+            "success": _public_base + reverse('suscripciones:pago_exitoso'),
+            "failure": _public_base + reverse('suscripciones:pago_fallido'),
+            "pending": _public_base + reverse('suscripciones:pago_pendiente'),
         },
-        "auto_return": "approved",
         "payer": {
             "email": request.user.email,
         },
     }
+
+    # auto_return solo funciona con URLs públicas (no localhost)
+    if _is_public:
+        preference_data["auto_return"] = "approved"
 
     response = sdk.preference().create(preference_data)
 
