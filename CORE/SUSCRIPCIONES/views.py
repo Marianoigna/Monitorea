@@ -212,8 +212,12 @@ def checkout_pro_prueba(request):
         init_point = response["response"]["init_point"]
         return redirect(init_point)
 
+    error_detail = response.get("response", response)
     logger.error("Error creando preferencia Checkout Pro: %s", response)
-    return HttpResponse("Error al conectar con MercadoPago. Revisá el ACCESS_TOKEN en .env.", status=500)
+    return HttpResponse(
+        f"<pre style='font-family:monospace'>Error MP (HTTP {response.get('status')}):\n{error_detail}</pre>",
+        status=500,
+    )
 
 
 def pago_exitoso(request):
