@@ -14,69 +14,73 @@
         </ol>
       </nav>
 
-      <h1 class="h2 fw-bold mb-1">Términos y Condiciones de Uso</h1>
-      <p class="text-body-secondary small mb-4">Última actualización: 10 de junio de 2026</p>
+      <h1 class="h2 fw-bold mb-1">Términos y Condiciones</h1>
+      <p class="text-body-secondary small mb-4">Última actualización: junio 2026</p>
 
       <div class="card border shadow-sm">
         <div class="card-body p-4 p-lg-5">
 
-          <p class="text-body-secondary">
-            Bienvenido a <strong>MONITOREA</strong> (en adelante, "la Plataforma"), un servicio de monitoreo de sensores IoT en tiempo real provisto por <strong>Monitorea.srl</strong> (en adelante, "el Proveedor").
-          </p>
-          <p class="text-body-secondary">
-            Al registrarse y utilizar nuestro sitio web <a href="https://monitorea.onrender.com" target="_blank" rel="noopener noreferrer">https://monitorea.onrender.com</a> y sus servicios relacionados, usted (en adelante, "el Usuario") acepta cumplir y estar sujeto a los siguientes Términos y Condiciones de Uso. Si no está de acuerdo con alguna parte de estos términos, no deberá utilizar la Plataforma.
-          </p>
+          {# ── PEGÁ TU TEXTO AQUÍ ── #}
 
-          <h2 class="h5 fw-semibold mt-4 mb-3">1. Descripción del Servicio</h2>
+          <h2 class="h5 fw-semibold mb-3">1. Aceptación de los términos</h2>
           <p class="text-body-secondary">
-            MONITOREA es una plataforma multiusuario basada en la nube que permite la recepción, almacenamiento, visualización en tiempo real y análisis histórico de datos provenientes de dispositivos físicos de telemetría (sensores de temperatura, tensión, corriente, humedad, presión, etc.) de propiedad del Usuario, utilizando protocolos de comunicación como MQTT y WebSockets.
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 1 -->
+            Al crear una cuenta o utilizar los servicios de <strong>MONITOREA</strong>, el usuario acepta quedar
+            vinculado por los presentes Términos y Condiciones. Si no está de acuerdo con alguno de ellos,
+            deberá abstenerse de utilizar la plataforma.
           </p>
 
-          <h2 class="h5 fw-semibold mt-4 mb-3">2. Registro de Cuenta y Seguridad</h2>
-          <ul class="text-body-secondary">
-            <li class="mb-2"><strong>Registro:</strong> Para utilizar la Plataforma, el Usuario debe crear una cuenta proporcionando datos verídicos, exactos y actualizados.</li>
-            <li class="mb-2"><strong>Seguridad de las credenciales:</strong> El Usuario es el único responsable de mantener la confidencialidad de sus credenciales de acceso (usuario y contraseña) y de todas las actividades que ocurran bajo su cuenta.</li>
-            <li><strong>Aislamiento de datos:</strong> La Plataforma garantiza que los datos de los dispositivos de cada usuario están lógicamente aislados de otros usuarios mediante estrictos controles de acceso a nivel de base de datos y WebSockets.</li>
-          </ul>
-
-          <h2 class="h5 fw-semibold mt-4 mb-3">3. Planes, Precios y Suscripciones</h2>
-          <p class="text-body-secondary">La Plataforma ofrece dos niveles de acceso:</p>
-          <ul class="text-body-secondary">
-            <li class="mb-2"><strong>Plan Gratuito:</strong> Permite el acceso al dashboard en tiempo real para visualizar sensores activos. No incluye reportes históricos ni configuración de alertas.</li>
-            <li class="mb-2"><strong>Plan Premium:</strong> Mediante el pago de una suscripción mensual de $29.999 ARS (o el valor vigente publicado en la sección de Planes), el Usuario accede a funciones avanzadas que incluyen: reportes históricos con filtros, exportación de datos en formato CSV y configuración de alertas de umbrales con notificaciones de WhatsApp.</li>
-            <li><strong>Actualizaciones de precios:</strong> El Proveedor se reserva el derecho de modificar las tarifas de los planes en cualquier momento, lo cual será notificado al Usuario con al menos 30 días de anticipación.</li>
-          </ul>
-
-          <h2 class="h5 fw-semibold mt-4 mb-3">4. Pasarela de Pagos (Mercado Pago)</h2>
-          <ul class="text-body-secondary">
-            <li class="mb-2"><strong>Procesamiento de pagos:</strong> Los pagos de la suscripción Premium se procesan de forma segura a través de la pasarela de pagos Mercado Pago.</li>
-            <li class="mb-2"><strong>Datos financieros:</strong> El Proveedor no almacena, procesa ni tiene acceso a los datos de las tarjetas de crédito o débito del Usuario. Toda la transacción ocurre dentro de los servidores seguros de Mercado Pago.</li>
-            <li><strong>Facturación y Cancelación:</strong> La suscripción se factura periódicamente. El Usuario puede cancelar su suscripción Premium en cualquier momento desde su panel de usuario. La cancelación evitará el próximo cobro, pero no dará derecho a reembolsos por periodos ya facturados y utilizados.</li>
-          </ul>
-
-          <h2 class="h5 fw-semibold mt-4 mb-3">5. Responsabilidad sobre el Hardware y la Conectividad</h2>
-          <ul class="text-body-secondary">
-            <li class="mb-2"><strong>Equipos del Usuario:</strong> El Usuario es el único responsable de la adquisición, instalación, configuración y mantenimiento de sus sensores físicos (ej. ESP32, simuladores MQTTX, etc.) y de asegurar su correcta conexión a internet.</li>
-            <li><strong>Broker MQTT:</strong> La Plataforma puede utilizar brokers de mensajería externos (como EMQ X u otros proveedores de infraestructura) para el tránsito de datos de telemetría. El Proveedor no se hace responsable por interrupciones del servicio ajenas a su control directo.</li>
-          </ul>
-
-          <h2 class="h5 fw-semibold mt-4 mb-3">6. Limitación de Responsabilidad</h2>
-          <ul class="text-body-secondary">
-            <li class="mb-2"><strong>No apto para sistemas críticos de soporte vital o seguridad extrema:</strong> La Plataforma se ofrece "tal cual" y "según disponibilidad". Aunque nos esforzamos por mantener una alta disponibilidad y precisión, MONITOREA no debe ser utilizada como el único sistema de seguridad o alerta en entornos donde una falla del sistema pueda causar daños materiales graves, pérdidas financieras directas o poner en riesgo la vida humana o animal (por ejemplo, cámaras de frío médico críticas, alarmas de incendio principales, etc.).</li>
-            <li class="mb-2"><strong>Fallas en las notificaciones:</strong> El envío de alertas depende de servicios de terceros (como Twilio para WhatsApp y redes de telefonía móvil). El Proveedor no garantiza la entrega inmediata ni el 100% de efectividad de las alertas en caso de caídas de red de estos proveedores externos.</li>
-            <li><strong>Límite de indemnización:</strong> En ningún caso el Proveedor será responsable por daños indirectos, incidentales o consecuentes (incluyendo pérdida de stock, mercadería congelada dañada, lucro cesante o pérdida de datos) derivados del uso o la imposibilidad de uso de la Plataforma.</li>
-          </ul>
-
-          <h2 class="h5 fw-semibold mt-4 mb-3">7. Modificaciones del Servicio y de los Términos</h2>
+          <h2 class="h5 fw-semibold mt-4 mb-3">2. Descripción del servicio</h2>
           <p class="text-body-secondary">
-            El Proveedor se reserva el derecho de modificar o discontinuar, temporal o permanentemente, el servicio (o cualquier parte del mismo) con o sin previo aviso. Asimismo, podremos actualizar estos Términos y Condiciones en el futuro. El uso continuado de la Plataforma tras dichos cambios constituirá la aceptación de los nuevos términos.
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 2 -->
+            MONITOREA es una plataforma de monitoreo IoT en tiempo real que permite a los usuarios
+            visualizar, registrar y recibir alertas sobre variables de sus dispositivos conectados.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">3. Registro y cuenta de usuario</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 3 -->
+            El usuario es responsable de mantener la confidencialidad de sus credenciales de acceso
+            y de todas las actividades que se realicen bajo su cuenta.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">4. Planes y pagos</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 4 -->
+            MONITOREA ofrece un plan gratuito y planes de suscripción premium con facturación mensual.
+            Los pagos se procesan a través de Mercado Pago. El usuario puede cancelar su suscripción
+            en cualquier momento desde la sección de Planes.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">5. Uso aceptable</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 5 -->
+            El usuario se compromete a no utilizar la plataforma para actividades ilícitas, fraudulentas
+            o que vulneren derechos de terceros.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">6. Limitación de responsabilidad</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 6 -->
+            MONITOREA no será responsable por daños directos, indirectos o consecuentes derivados del
+            uso o la imposibilidad de uso de la plataforma.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">7. Modificaciones</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 7 -->
+            MONITOREA se reserva el derecho de modificar estos Términos en cualquier momento.
+            Los cambios serán notificados a través de la plataforma con al menos 15 días de anticipación.
           </p>
 
           <h2 class="h5 fw-semibold mt-4 mb-3">8. Contacto</h2>
           <p class="text-body-secondary">
-            Para cualquier duda o consulta respecto a estos Términos y Condiciones, puede comunicarse con nosotros a:
-            <a href="mailto:soporte@monitorea.com">soporte@monitorea.com</a>.
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 8 -->
+            Para consultas sobre estos Términos podés escribirnos a
+            <a href="mailto:contacto@monitorea.app">contacto@monitorea.app</a>.
           </p>
+
+          {# ── FIN DEL TEXTO ── #}
 
         </div>
       </div>

@@ -1,7 +1,9 @@
 import json
 import logging
+from datetime import timedelta
 
 import mercadopago
+import requests
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -9,7 +11,6 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -59,50 +60,111 @@ def crear_suscripcion(request):
 @require_POST
 def webhook(request):
     """
-    Recibe notificaciones IPN de MercadoPago sobre el estado de las
-    suscripciones (preapproval).
+    Recibe notificaciones de Checkout Pro (tipo 'payment') de MercadoPago.
 
-    Cuando el estado es 'authorized' (pago aprobado):
-      - Busca el usuario por email
-      - Activa is_premium = True
-      - Establece premium_until = now + 30 días
+    Flujo:
+      1. MP envía un POST con JSON: {"type": "payment", "data": {"id": "<payment_id>"}, ...}
+      2. Se consulta la API de MP para obtener el detalle del pago.
+      3. Si status == 'approved':
+         - Se busca el CustomUser por payer.email.
+         - Se activa is_premium = True y se extiende premium_until 30 días.
+         - Se crea o actualiza el objeto Pago vinculado a la Suscripcion del usuario.
 
-    IMPORTANTE: esta URL debe ser pública.
+    IMPORTANTE: siempre retorna HTTP 200 para que MP no reintente la notificación.
     Para desarrollo local usá ngrok: ngrok http 8000
     """
+    # ── 1. Parsear cuerpo ─────────────────────────────────────────────────────
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return HttpResponse(status=400)
-
-    # MP envía notificaciones de tipo 'preapproval' para suscripciones recurrentes
-    if data.get("type") != "preapproval":
+        logger.warning("Webhook MP: cuerpo JSON inválido.")
         return HttpResponse(status=200)
 
-    preapproval_id = data.get("data", {}).get("id")
-    if not preapproval_id:
+    notification_type = data.get("type") or data.get("action", "")
+
+    # Checkout Pro envía type='payment'; ignorar el resto silenciosamente
+    if "payment" not in notification_type:
         return HttpResponse(status=200)
 
+    payment_id = data.get("data", {}).get("id")
+    if not payment_id:
+        logger.warning("Webhook MP: notificación de pago sin data.id.")
+        return HttpResponse(status=200)
+
+    # ── 2. Consultar detalle del pago a la API de MP ──────────────────────────
     try:
-        sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
-        response = sdk.preapproval().get(preapproval_id)
-        preapproval = response.get("response", {})
+        mp_url = f"https://api.mercadopago.com/v1/payments/{payment_id}"
+        headers = {"Authorization": f"Bearer {settings.MERCADOPAGO_ACCESS_TOKEN}"}
+        mp_response = requests.get(mp_url, headers=headers, timeout=10)
+        mp_response.raise_for_status()
+        payment = mp_response.json()
 
-        if preapproval.get("status") == "authorized":
-            payer_email = preapproval.get("payer_email", "")
+        logger.info(
+            "Webhook MP: pago %s recibido con status '%s'.",
+            payment_id, payment.get("status"),
+        )
+
+        # ── 3. Procesar solo pagos aprobados ──────────────────────────────────
+        if payment.get("status") == "approved":
+            payer_email = payment.get("payer", {}).get("email", "")
+            transaction_amount = payment.get("transaction_amount", 0)
+            external_reference = str(payment.get("id", payment_id))
 
             from ACCOUNTS.models import CustomUser
+            from SUSCRIPCIONES.models import Pago, Plan, Suscripcion
+
             try:
                 user = CustomUser.objects.get(email=payer_email)
-                user.is_premium    = True
-                user.premium_until = timezone.now() + timedelta(days=30)
-                user.save(update_fields=['is_premium', 'premium_until'])
-                logger.info("Premium activado para usuario: %s", user.username)
             except CustomUser.DoesNotExist:
-                logger.warning("Webhook MP: usuario no encontrado con email %s", payer_email)
+                logger.warning(
+                    "Webhook MP: usuario no encontrado con email '%s'.", payer_email
+                )
+                return HttpResponse(status=200)
 
+            # ── 3a. Actualizar campos de premium en CustomUser ────────────────
+            now = timezone.now()
+            nueva_fecha = (
+                max(user.premium_until, now) if user.premium_until and user.premium_until > now
+                else now
+            ) + timedelta(days=30)
+
+            user.is_premium    = True
+            user.premium_until = nueva_fecha
+            user.save(update_fields=["is_premium", "premium_until"])
+            logger.info("Premium activado para usuario: %s hasta %s", user.username, nueva_fecha)
+
+            # ── 3b. Obtener o crear Suscripcion activa ────────────────────────
+            plan_premium, _ = Plan.objects.get_or_create(
+                nombre=Plan.PREMIUM,
+                defaults={"precio_mensual": transaction_amount},
+            )
+            suscripcion, created = Suscripcion.objects.update_or_create(
+                usuario=user,
+                defaults={
+                    "plan": plan_premium,
+                    "estado": Suscripcion.ACTIVA,
+                    "fecha_vencimiento": nueva_fecha,
+                },
+            )
+            if created:
+                logger.info("Suscripcion creada para usuario: %s", user.username)
+
+            # ── 3c. Registrar el Pago (evitar duplicados por referencia) ──────
+            Pago.objects.update_or_create(
+                referencia_gateway=external_reference,
+                defaults={
+                    "suscripcion": suscripcion,
+                    "monto": transaction_amount,
+                    "metodo": "mercadopago",
+                    "exitoso": True,
+                },
+            )
+            logger.info("Pago %s registrado para usuario: %s", external_reference, user.username)
+
+    except requests.RequestException as exc:
+        logger.error("Webhook MP: error consultando API de MP para pago %s: %s", payment_id, exc)
     except Exception as exc:
-        logger.error("Error procesando webhook MP: %s", exc)
+        logger.error("Webhook MP: error inesperado procesando pago %s: %s", payment_id, exc)
 
     # Siempre responder 200 para que MP no reintente
     return HttpResponse(status=200)
