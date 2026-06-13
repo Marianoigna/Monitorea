@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 
-import dj_database_url
+import dj_database_url # pyright: ignore[reportMissingImports]
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -169,6 +169,7 @@ MERCADOPAGO_PUBLIC_KEY   = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
 MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
 MERCADOPAGO_PLAN_ID      = os.environ.get('MERCADOPAGO_PLAN_ID', '')
 MERCADOPAGO_BACK_URL     = os.environ.get('MERCADOPAGO_BACK_URL', 'http://127.0.0.1:8000/')
+MERCADOPAGO_WEBHOOK_SECRET = os.getenv("MERCADOPAGO_WEBHOOK_SECRET", "")
 
 # ── CSRF ─────────────────────────────────────────────────────
 CSRF_TRUSTED_ORIGINS = os.environ.get(
