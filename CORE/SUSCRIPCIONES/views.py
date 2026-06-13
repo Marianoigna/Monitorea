@@ -198,7 +198,7 @@ def checkout_pro_prueba(request):
             {
                 "title": "Monitorea Premium — prueba de integración",
                 "quantity": 1,
-                "unit_price": 100.00,
+                "unit_price": 200.00,
                 "currency_id": "ARS",
             }
         ],
