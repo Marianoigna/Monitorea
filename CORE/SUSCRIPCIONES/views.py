@@ -197,6 +197,9 @@ def crear_suscripcion(request, tipo):
         tipo, monto, external_ref, back_url, notification_url,
     )
 
+    # start_date requerido por MP para preapproval directo (sin preapproval_plan_id)
+    start_date = timezone.now().strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
+
     preapproval_data = {
         "reason": f"Monitorea Premium — {tipo}",
         "auto_recurring": {
@@ -204,6 +207,7 @@ def crear_suscripcion(request, tipo):
             "frequency_type":     "months",
             "transaction_amount": float(monto),
             "currency_id":        "ARS",
+            "start_date":         start_date,
         },
         "back_url":           back_url,
         "payer_email":        request.user.email,
@@ -399,6 +403,9 @@ def webhook(request):
         if "subscription_authorized_payment" in notification_type:
             mp_url = f"https://api.mercadopago.com/v1/payments/{resource_id}"
             resp = requests.get(mp_url, headers=headers, timeout=10)
+            if resp.status_code in (400, 404):
+                logger.warning("Webhook MP: recurso no encontrado en MP (id=%s) — posible simulación.", resource_id)
+                return HttpResponse(status=200)
             resp.raise_for_status()
             payment = resp.json()
 
@@ -446,9 +453,16 @@ def webhook(request):
                 )
 
         # ── B. Alta / cambio de estado de suscripción recurrente ──────────────
+        # subscription_preapproval_plan = notificación de plan (no de suscripción individual), se ignora
+        elif notification_type == "subscription_preapproval_plan":
+            logger.info("Webhook MP: notificación de plan '%s' — ignorada.", resource_id)
+
         elif "preapproval" in notification_type or "subscription" in notification_type:
             mp_url = f"https://api.mercadopago.com/preapproval/{resource_id}"
             resp = requests.get(mp_url, headers=headers, timeout=10)
+            if resp.status_code in (400, 404):
+                logger.warning("Webhook MP: suscripción no encontrada en MP (id=%s) — posible simulación.", resource_id)
+                return HttpResponse(status=200)
             resp.raise_for_status()
             preapproval = resp.json()
 
@@ -479,6 +493,9 @@ def webhook(request):
         elif "payment" in notification_type:
             mp_url = f"https://api.mercadopago.com/v1/payments/{resource_id}"
             resp = requests.get(mp_url, headers=headers, timeout=10)
+            if resp.status_code in (400, 404):
+                logger.warning("Webhook MP: pago no encontrado en MP (id=%s) — posible simulación.", resource_id)
+                return HttpResponse(status=200)
             resp.raise_for_status()
             payment = resp.json()
 
