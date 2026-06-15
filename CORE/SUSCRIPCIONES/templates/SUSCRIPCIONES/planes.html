@@ -39,9 +39,10 @@
       <div class="card border h-100">
         <div class="card-body d-flex flex-column p-4">
           <h5 class="card-title fw-bold mb-1">Gratuito</h5>
-          <div class="mb-1">
-            <span class="display-5 fw-bold">$0</span>
-            <span class="text-body-secondary">/ mes</span>
+          <div class="mb-1 d-flex align-items-end gap-1">
+            <span class="text-body-secondary fw-semibold" style="font-size:0.72rem;padding-bottom:0.55rem">$&nbsp;ARS</span>
+            <span class="display-5 fw-bold lh-1">0<span class="fs-5 text-body-secondary">,00</span></span>
+            <span class="text-body-secondary pb-1">/ mes</span>
           </div>
           <p class="text-body-secondary small mb-4">Acceso b&aacute;sico al monitoreo en tiempo real.</p>
           <ul class="list-unstyled mb-4 flex-grow-1">
@@ -70,9 +71,10 @@
       <div class="card border h-100">
         <div class="card-body d-flex flex-column p-4">
           <h5 class="card-title fw-bold mb-1">Mensual</h5>
-          <div class="mb-1">
-            <span class="display-5 fw-bold">$ARG{{ precio_mensual|floatformat:"0" }}</span>
-            <span class="text-body-secondary">/ mes</span>
+          <div class="mb-1 d-flex align-items-end gap-1">
+            <span class="text-body-secondary fw-semibold" style="font-size:0.72rem;padding-bottom:0.55rem">$&nbsp;ARS</span>
+            <span class="display-5 fw-bold lh-1"><span class="precio-integer" data-value="{{ precio_mensual }}">{{ precio_mensual }}</span><span class="fs-5 text-body-secondary precio-decimal"></span></span>
+            <span class="text-body-secondary pb-1">/ mes</span>
           </div>
           <p class="text-body-secondary small mb-4">Acceso completo con renovaci&oacute;n mensual.</p>
           <ul class="list-unstyled mb-4 flex-grow-1">
@@ -104,9 +106,10 @@
         </div>
         <div class="card-body d-flex flex-column p-4">
           <h5 class="card-title fw-bold mb-1 text-primary">Anual</h5>
-          <div class="mb-1">
-            <span class="display-5 fw-bold">$ARG{{ precio_anual|floatformat:"0" }}</span>
-            <span class="text-body-secondary">/ a&ntilde;o</span>
+          <div class="mb-1 d-flex align-items-end gap-1">
+            <span class="text-body-secondary fw-semibold" style="font-size:0.72rem;padding-bottom:0.55rem">$&nbsp;ARS</span>
+            <span class="display-5 fw-bold lh-1"><span class="precio-integer" data-value="{{ precio_anual }}">{{ precio_anual }}</span><span class="fs-5 text-body-secondary precio-decimal"></span></span>
+            <span class="text-body-secondary pb-1">/ a&ntilde;o</span>
           </div>
           <p class="text-success small fw-semibold mb-1">
             <i class="bi bi-piggy-bank me-1"></i>
@@ -364,5 +367,29 @@
   {% endif %}
 
 </div>
+
+<script>
+(function () {
+  var fmt = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.querySelectorAll('.precio-integer').forEach(function (el) {
+    var raw   = parseFloat(el.dataset.value) || 0;
+    var parts = fmt.formatToParts(raw);
+    var entero    = '';
+    var decimales = '';
+    var enDec     = false;
+    parts.forEach(function (p) {
+      if (p.type === 'decimal')  { enDec = true;  decimales += ','; return; }
+      if (enDec)                 { decimales += p.value; }
+      else                       { entero    += p.value; }
+    });
+    el.textContent = entero;
+    var decEl = el.nextElementSibling;
+    if (decEl && decEl.classList.contains('precio-decimal')) {
+      decEl.textContent = decimales || ',00';
+    }
+  });
+})();
+</script>
+
 {% endblock %}
 
