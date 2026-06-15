@@ -916,6 +916,116 @@ TWILIO_WHATSAPP_TO=whatsapp:+549XXXXXXXXXX
 
 # Umbrales de alertas
 TEMP_MAX=8.0
+
+---
+
+## 💳 Integración de Suscripciones con Mercado Pago
+
+### Resumen
+
+La app `SUSCRIPCIONES` implementa **suscripciones recurrentes con débito automático** usando el flujo **Preapproval DIRECTO** de Mercado Pago. Cuando un usuario elige un plan (mensual o anual), se crea una suscripción individual en MP con su `user_id` embebido en `external_reference`. Cuando MP cobra, notifica al webhook, que identifica al usuario y activa su acceso Premium automáticamente.
+
+---
+
+### 🔄 Diagrama de flujo
+
+```mermaid
+flowchart TD
+    A([Usuario logueado]) --> B[Clic en 'Suscribirse']
+    B --> C["crear_suscripcion(tipo)\nexternal_reference = 'user_id:tipo'"]
+    C --> D[sdk.preapproval().create\npreapproval DIRECTO]
+    D --> E{MP responde\n200/201?}
+    E -- Sí --> F[Redirección a init_point de MP]
+    E -- No --> G[Redirect a página de planes]
+    F --> H[Usuario ingresa tarjeta\nen checkout de MP]
+    H --> I[MP procesa el cobro]
+    I --> J[MP POST al webhook\ntype: subscription_preapproval\no subscription_authorized_payment]
+    J --> K["webhook consulta\n/preapproval/{id} en API MP"]
+    K --> L["Extrae external_reference\n'user_id:tipo'"]
+    L --> M[_buscar_usuario por user_id]
+    M --> N{Usuario\nencontrado?}
+    N -- Sí --> O[_activar_premium\nis_premium=True\npremium_until += días]
+    N -- No --> P[Log WARNING\nretorna 200]
+    O --> Q([✅ Premium activado])
+```
+
+---
+
+### ⚠️ Concepto clave: preapproval_plan vs preapproval directo
+
+| Tipo | Descripción | ¿Lleva `external_reference` por usuario? |
+|---|---|---|
+| `preapproval_plan` | Plan genérico pre-creado en el panel de MP. El usuario se suscribe desde el `init_point` del plan. | ❌ No — no hay forma de identificar a qué usuario de tu app corresponde la suscripción. |
+| **Preapproval directo** ✅ | Suscripción individual creada por API con `sdk.preapproval().create()`. | ✅ Sí — `external_reference` viaja en el objeto y MP lo devuelve en cada notificación al webhook. |
+
+**→ Usamos preapproval directo** porque es la única forma de saber qué usuario de Monitorea corresponde a cada suscripción de MP.
+
+---
+
+### 🔑 El rol de `external_reference`
+
+`external_reference` tiene el formato `"<user_id>:<tipo>"`, por ejemplo `"42:mensual"` o `"7:anual"`.
+
+- Viaja en el preapproval creado por `crear_suscripcion`.
+- Cuando el webhook recibe una notificación, consulta la API de MP, obtiene el preapproval y extrae `external_reference`.
+- Splitea por `":"` → `user_id = parts[0]`, `tipo = parts[1]`.
+- Llama a `_buscar_usuario(user_id)` y activa Premium con los días correspondientes (30 mensual / 365 anual).
+
+---
+
+### 🐛 Tabla de errores resueltos
+
+| Error / Síntoma | Causa | Solución aplicada |
+|---|---|---|
+| `"usuario no encontrado"` en el webhook | Se usaba `preapproval_plan_id` → el checkout del plan no lleva `external_reference` por usuario | Migrar a preapproval DIRECTO con `external_reference = "user_id:tipo"` |
+| `"Invalid value for auto_recurring.start_date, cannot be a past date"` (HTTP 400) | Se enviaba `start_date = timezone.now()` pero llegaba a MP con unos segundos de diferencia, quedando en el pasado | Eliminar `start_date` del payload — MP usa su valor por defecto |
+| `"Both payer and collector must be real or test users"` | El `payer_email` era un usuario real de MP probando con la cuenta del vendedor, o viceversa | Usar cuentas de prueba separadas: una para vendedor (collector) y otra para comprador (payer). No mezclar. |
+| Webhook devuelve `401 Unauthorized` | `MERCADOPAGO_WEBHOOK_SECRET` configurado pero el `x-signature` no coincide durante debugging | `validar_firma_mp` temporalmente logguea WARNING pero retorna `True` — **revertir a modo estricto en producción** |
+| `_buscar_usuario` no encontraba al usuario en la rama `payment` | Se pasaba el `external_reference` completo (`"id:tipo"`) en lugar de solo el `user_id` | Splitear `external_reference` por `":"` antes de llamar a `_buscar_usuario` en todas las ramas del webhook |
+
+---
+
+### 🧪 Cómo probar la integración
+
+1. **Crear cuentas de prueba en Mercado Pago**
+   - Ir a [Cuentas de prueba de MP](https://www.mercadopago.com.ar/developers/panel/test-users)
+   - Crear una cuenta de tipo **comprador** (será el usuario que paga)
+   - Anotar el email generado: `test_user_XXXXXXXX@testuser.com`
+
+2. **Crear usuario en Monitorea con ese email**
+   - En el admin de Django o en el registro de la app, crear un usuario con el email exacto de la cuenta de prueba
+
+3. **Flujo completo**
+   - Loguearse con ese usuario en Monitorea
+   - Ir a `/suscripciones/planes/`
+   - Hacer clic en "Contratar mensual" o "Contratar anual"
+   - Completar el pago con las [tarjetas de prueba de MP](https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/additional-content/your-integrations/test/cards)
+
+4. **Verificar activación**
+   - En los logs de Render (o consola local) buscar: `"Premium activado para <username>"`
+   - El usuario debería ver su plan activo en `/suscripciones/planes/`
+
+---
+
+### 🔐 Variables de entorno requeridas
+
+| Variable | Descripción | Ejemplo / Placeholder |
+|---|---|---|
+| `MERCADOPAGO_ACCESS_TOKEN` | Token de acceso a la API de MP (producción o test) | `APP_USR-...` |
+| `MERCADOPAGO_PUBLIC_KEY` | Clave pública para el frontend (Checkout Bricks, si aplica) | `APP_USR-...` |
+| `MERCADOPAGO_BACK_URL` | URL base pública de la app (para construir `back_url` y `notification_url`) | `https://tu-app.onrender.com` |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Clave secreta del webhook (panel MP → Notificaciones) | `abc123...` |
+| `PRECIO_MENSUAL` | Precio en ARS del plan mensual (el anual = × 10) | `30000` |
+
+> ⚠️ Nunca commitas valores reales. Usá variables de entorno en Render / `.env` local.
+
+---
+
+### 📋 TODO / Pendientes
+
+- [ ] **Reactivar validación estricta de firma** en `validar_firma_mp` — hoy está en modo `WARNING` temporal para facilitar el debugging. Una vez confirmado que `MERCADOPAGO_WEBHOOK_SECRET` es correcto, revertir el `return True` a `return False`.
+- [ ] **Verificar rama `subscription_authorized_payment`** — revisar que el endpoint `/v1/payments/{id}` sea el correcto para pagos recurrentes de preapproval directo (podría ser `/preapproval_payment/{id}`).
+- [ ] Considerar agregar email de confirmación al usuario cuando su Premium se activa correctamente.
 TEMP_MIN=-25.0
 VOLT_MAX=240.0
 VOLT_MIN=190.0
