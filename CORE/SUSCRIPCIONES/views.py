@@ -183,6 +183,7 @@ def crear_suscripcion(request, tipo):
     precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 4999)
     monto      = precio_mensual if tipo == 'mensual' else precio_mensual * 10
     frecuencia = 1 if tipo == 'mensual' else 12
+    external_ref = f"{request.user.id}:{tipo}"
 
     sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
 
@@ -190,6 +191,11 @@ def crear_suscripcion(request, tipo):
     _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
     back_url         = _public_base + reverse('suscripciones:pago_exitoso')
     notification_url = _public_base + reverse('suscripciones:webhook')
+
+    logger.info(
+        "crear_suscripcion — tipo: %s | monto: %s | external_reference: %s | back_url: %s | notification_url: %s",
+        tipo, monto, external_ref, back_url, notification_url,
+    )
 
     preapproval_data = {
         "reason": f"Monitorea Premium — {tipo}",
@@ -199,11 +205,11 @@ def crear_suscripcion(request, tipo):
             "transaction_amount": float(monto),
             "currency_id":        "ARS",
         },
-        "back_url":          back_url,
-        "payer_email":       request.user.email,
-        "external_reference": f"{request.user.id}:{tipo}",
-        "notification_url":  notification_url,
-        "status":            "pending",
+        "back_url":           back_url,
+        "payer_email":        request.user.email,
+        "external_reference": external_ref,
+        "notification_url":   notification_url,
+        "status":             "pending",
     }
 
     response = sdk.preapproval().create(preapproval_data)
@@ -536,8 +542,8 @@ def checkout_pro_prueba(request):
 
 
 def pago_exitoso(request):
-    """MP redirige aquí cuando el pago fue aprobado — vuelve al dashboard."""
-    return redirect('dashboard:dashboard')
+    """MP redirige aquí cuando el pago fue aprobado — muestra mensaje y vuelve al dashboard."""
+    return render(request, 'SUSCRIPCIONES/pago_exitoso.html')
 
 
 def pago_fallido(request):
