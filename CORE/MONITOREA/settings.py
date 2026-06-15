@@ -189,7 +189,7 @@ TWILIO_AUTH_TOKEN    = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')  # ej: whatsapp:+14155238886
 ALERT_COOLDOWN_SEGUNDOS = int(os.environ.get('ALERT_COOLDOWN_SEGUNDOS', '300'))
 
-PRECIO_MENSUAL = 59000          # precio base en ARS (anual = PRECIO_MENSUAL × 10)
+PRECIO_MENSUAL = 29900          # precio base en ARS (anual = PRECIO_MENSUAL × 10)
 # Email backend — para producción reemplazar con SMTP real
 
 
