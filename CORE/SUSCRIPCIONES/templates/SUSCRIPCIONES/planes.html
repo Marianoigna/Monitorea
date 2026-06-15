@@ -71,7 +71,7 @@
         <div class="card-body d-flex flex-column p-4">
           <h5 class="card-title fw-bold mb-1">Mensual</h5>
           <div class="mb-1">
-            <span class="display-5 fw-bold">${{ precio_mensual|floatformat:"0" }}</span>
+            <span class="display-5 fw-bold">$ARG{{ precio_mensual|floatformat:"0" }}</span>
             <span class="text-body-secondary">/ mes</span>
           </div>
           <p class="text-body-secondary small mb-4">Acceso completo con renovaci&oacute;n mensual.</p>
@@ -105,7 +105,7 @@
         <div class="card-body d-flex flex-column p-4">
           <h5 class="card-title fw-bold mb-1 text-primary">Anual</h5>
           <div class="mb-1">
-            <span class="display-5 fw-bold">${{ precio_anual|floatformat:"0" }}</span>
+            <span class="display-5 fw-bold">$ARG{{ precio_anual|floatformat:"0" }}</span>
             <span class="text-body-secondary">/ a&ntilde;o</span>
           </div>
           <p class="text-success small fw-semibold mb-1">
