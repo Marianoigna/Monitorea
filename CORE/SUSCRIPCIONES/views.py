@@ -191,7 +191,6 @@ def crear_suscripcion(request, tipo):
     precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 30000)
     monto      = precio_mensual if tipo == 'mensual' else precio_mensual * 10
     frecuencia = 1 if tipo == 'mensual' else 12
-    start_date = timezone.now().strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
 
     preapproval_data = {
         "reason": f"Monitorea Premium — {tipo}",
@@ -200,7 +199,6 @@ def crear_suscripcion(request, tipo):
             "frequency_type":     "months",
             "transaction_amount": float(monto),
             "currency_id":        "ARS",
-            "start_date":         start_date,
         },
         "back_url":           back_url,
         "payer_email":        request.user.email,
