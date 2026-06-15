@@ -172,14 +172,13 @@ def confirmar_cancelacion(request):
 @login_required
 def crear_suscripcion(request, tipo):
     """
-    Crea una suscripción recurrente (preapproval) en MercadoPago.
+    Redirige al usuario al checkout de suscripción recurrente de MercadoPago
+    usando directamente el init_point del plan.
     `tipo` puede ser 'mensual' o 'anual'.
 
     Requiere en settings:
-      MERCADOPAGO_ACCESS_TOKEN     - token de acceso de la app MP
       MERCADOPAGO_PLAN_ID_MENSUAL  - ID del plan mensual creado en MP
       MERCADOPAGO_PLAN_ID_ANUAL    - ID del plan anual creado en MP
-      MERCADOPAGO_BACK_URL         - URL base pública del servidor
     """
     PLANES_ID = {
         'mensual': getattr(settings, 'MERCADOPAGO_PLAN_ID_MENSUAL', ''),
@@ -195,27 +194,8 @@ def crear_suscripcion(request, tipo):
         logger.error("crear_suscripcion: MERCADOPAGO_PLAN_ID_%s no está configurado.", tipo.upper())
         return redirect('suscripciones:planes')
 
-    sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
-
-    _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
-    _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
-
-    subscription_data = {
-        "preapproval_plan_id": plan_id,
-        "payer_email": request.user.email,
-        "external_reference": f"{request.user.id}:{tipo}",
-        "back_url": _public_base + reverse('suscripciones:pago_exitoso'),
-        "notification_url": _public_base + reverse('suscripciones:webhook'),
-    }
-
-    response = sdk.preapproval().create(subscription_data)
-
-    if response["status"] == 201:
-        init_point = response["response"]["init_point"]
-        return redirect(init_point)
-
-    logger.error("Error creando suscripción MP (%s): %s", tipo, response)
-    return redirect('suscripciones:planes')
+    init_point = f"https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id={plan_id}"
+    return redirect(init_point)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
