@@ -340,32 +340,51 @@ def _buscar_usuario(external_reference, fallback_email=""):
 # Webhook — recibe confirmación de PAGOS y de SUSCRIPCIONES recurrentes
 # ──────────────────────────────────────────────────────────────────────────────
 @csrf_exempt
-@require_POST
 def webhook(request):
     """
-    Recibe notificaciones de MercadoPago. Maneja dos tipos:
-      - type='payment'      → pago único (Checkout Pro) o cuota de suscripción.
-      - type='subscription_preapproval' → alta/cambio de estado de la suscripción.
-
+    Recibe notificaciones de MercadoPago por POST (JSON) o GET (query params).
     Siempre retorna HTTP 200 (salvo firma inválida → 401) para que MP no reintente.
     """
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        logger.warning("Webhook MP: cuerpo JSON inválido.")
-        return HttpResponse(status=200)
+    # ── Parsear datos según método HTTP ──────────────────────────────────────
+    data = {}
+    raw_body = ""
+    if request.method == "POST":
+        try:
+            raw_body = request.body.decode("utf-8", errors="replace")
+            data = json.loads(raw_body)
+        except (json.JSONDecodeError, Exception):
+            logger.warning("Webhook MP: cuerpo POST no es JSON válido — body: %s", raw_body[:500])
 
-    notification_type = data.get("type") or data.get("action", "")
-    resource_id = data.get("data", {}).get("id")
+    # notification_type: viene en "type" o "action" (POST body) o "type"/"topic" (GET)
+    notification_type = (
+        data.get("type")
+        or data.get("action")
+        or request.GET.get("type")
+        or request.GET.get("topic")
+        or ""
+    )
 
-    logger.info("Webhook MP recibido — type: %s | resource_id: %s | GET: %s | body: %s",
-                notification_type, resource_id, dict(request.GET), data)
-    logger.info("Webhook MP headers — x-signature: %s | x-request-id: %s",
-                request.headers.get("x-signature", ""),
-                request.headers.get("x-request-id", ""))
+    # resource_id: viene en data.id (POST), o en query params data.id / id / preapproval_id
+    resource_id = (
+        data.get("data", {}).get("id")
+        or request.GET.get("data.id")
+        or request.GET.get("id")
+        or request.GET.get("preapproval_id")
+        or ""
+    )
+
+    logger.info(
+        "Webhook MP recibido — método: %s | type: %s | resource_id: %s | GET: %s | body: %s",
+        request.method, notification_type, resource_id, dict(request.GET), data or raw_body[:200],
+    )
+    logger.info(
+        "Webhook MP headers — x-signature: %s | x-request-id: %s",
+        request.headers.get("x-signature", ""),
+        request.headers.get("x-request-id", ""),
+    )
 
     if not resource_id:
-        logger.warning("Webhook MP: notificación sin data.id.")
+        logger.warning("Webhook MP: notificación sin resource_id — ignorando.")
         return HttpResponse(status=200)
 
     # Validar firma
