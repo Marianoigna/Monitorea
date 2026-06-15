@@ -172,19 +172,16 @@ def confirmar_cancelacion(request):
 @login_required
 def crear_suscripcion(request, tipo):
     """
-    Crea una suscripción recurrente (preapproval) en MercadoPago mediante el SDK
-    y redirige al usuario al init_point devuelto por MP.
+    Crea una suscripción recurrente (preapproval) en MercadoPago y redirige al init_point.
+    Si hay MERCADOPAGO_PLAN_ID_MENSUAL/ANUAL configurados en settings, los usa
+    (preapproval vinculado al plan). Si no, crea un preapproval independiente.
     `tipo` puede ser 'mensual' o 'anual'.
     """
     if tipo not in ('mensual', 'anual'):
         logger.error("crear_suscripcion: tipo '%s' inválido.", tipo)
         return redirect('suscripciones:planes')
 
-    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 4999)
-    monto      = precio_mensual if tipo == 'mensual' else precio_mensual * 10
-    frecuencia = 1 if tipo == 'mensual' else 12
     external_ref = f"{request.user.id}:{tipo}"
-
     sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
 
     _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
@@ -192,29 +189,48 @@ def crear_suscripcion(request, tipo):
     back_url         = _public_base + reverse('suscripciones:pago_exitoso')
     notification_url = _public_base + reverse('suscripciones:webhook')
 
-    logger.info(
-        "crear_suscripcion — tipo: %s | monto: %s | external_reference: %s | back_url: %s | notification_url: %s",
-        tipo, monto, external_ref, back_url, notification_url,
-    )
+    # ── Usar plan pre-creado en MP si está configurado (recomendado) ──────────
+    plan_id_key = 'MERCADOPAGO_PLAN_ID_MENSUAL' if tipo == 'mensual' else 'MERCADOPAGO_PLAN_ID_ANUAL'
+    plan_id = getattr(settings, plan_id_key, '')
 
-    # start_date requerido por MP para preapproval directo (sin preapproval_plan_id)
-    start_date = timezone.now().strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
-
-    preapproval_data = {
-        "reason": f"Monitorea Premium — {tipo}",
-        "auto_recurring": {
-            "frequency":          frecuencia,
-            "frequency_type":     "months",
-            "transaction_amount": float(monto),
-            "currency_id":        "ARS",
-            "start_date":         start_date,
-        },
-        "back_url":           back_url,
-        "payer_email":        request.user.email,
-        "external_reference": external_ref,
-        "notification_url":   notification_url,
-        "status":             "pending",
-    }
+    if plan_id:
+        preapproval_data = {
+            "preapproval_plan_id": plan_id,
+            "payer_email":        request.user.email,
+            "external_reference": external_ref,
+            "back_url":           back_url,
+            "notification_url":   notification_url,
+            "status":             "pending",
+        }
+        logger.info(
+            "crear_suscripcion — tipo: %s | plan_id: %s | external_reference: %s",
+            tipo, plan_id, external_ref,
+        )
+    else:
+        # Fallback: preapproval independiente (sin plan_id)
+        precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 30000)
+        monto      = precio_mensual if tipo == 'mensual' else precio_mensual * 10
+        frecuencia = 1 if tipo == 'mensual' else 12
+        start_date = timezone.now().strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
+        preapproval_data = {
+            "reason": f"Monitorea Premium — {tipo}",
+            "auto_recurring": {
+                "frequency":          frecuencia,
+                "frequency_type":     "months",
+                "transaction_amount": float(monto),
+                "currency_id":        "ARS",
+                "start_date":         start_date,
+            },
+            "back_url":           back_url,
+            "payer_email":        request.user.email,
+            "external_reference": external_ref,
+            "notification_url":   notification_url,
+            "status":             "pending",
+        }
+        logger.info(
+            "crear_suscripcion (sin plan_id) — tipo: %s | monto: %s | external_reference: %s",
+            tipo, monto, external_ref,
+        )
 
     response = sdk.preapproval().create(preapproval_data)
 
@@ -223,7 +239,6 @@ def crear_suscripcion(request, tipo):
 
     if response["status"] in (200, 201):
         init_point = response["response"]["init_point"]
-        logger.info("MP preapproval init_point: %s", init_point)
         logger.info("Suscripción %s creada para usuario %s — redirigiendo a MP.", tipo, request.user.id)
         return redirect(init_point)
 
