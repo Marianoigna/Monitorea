@@ -5,7 +5,7 @@ import logging
 import random
 import string
 from datetime import timedelta
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import mercadopago
 import requests
@@ -172,13 +172,9 @@ def confirmar_cancelacion(request):
 @login_required
 def crear_suscripcion(request, tipo):
     """
-    Redirige al usuario al checkout de suscripción recurrente de MercadoPago
-    usando directamente el init_point del plan.
+    Redirige al checkout de suscripción de MercadoPago usando el init_point del plan.
+    Agrega back_url y external_reference para retorno e identificación del usuario.
     `tipo` puede ser 'mensual' o 'anual'.
-
-    Requiere en settings:
-      MERCADOPAGO_PLAN_ID_MENSUAL  - ID del plan mensual creado en MP
-      MERCADOPAGO_PLAN_ID_ANUAL    - ID del plan anual creado en MP
     """
     PLANES_ID = {
         'mensual': getattr(settings, 'MERCADOPAGO_PLAN_ID_MENSUAL', ''),
@@ -191,10 +187,22 @@ def crear_suscripcion(request, tipo):
 
     plan_id = PLANES_ID[tipo]
     if not plan_id:
-        logger.error("crear_suscripcion: MERCADOPAGO_PLAN_ID_%s no está configurado.", tipo.upper())
+        logger.error("crear_suscripcion: MERCADOPAGO_PLAN_ID_%s no configurado.", tipo.upper())
         return redirect('suscripciones:planes')
 
-    init_point = f"https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id={plan_id}"
+    _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
+    _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
+    back_url = _public_base + reverse('suscripciones:pago_exitoso')
+
+    external_ref = f"{request.user.id}:{tipo}"
+
+    init_point = (
+        "https://www.mercadopago.com.ar/subscriptions/checkout"
+        f"?preapproval_plan_id={plan_id}"
+        f"&external_reference={quote(external_ref)}"
+        f"&back_url={quote(back_url, safe='')}"
+    )
+    logger.info("Redirigiendo a checkout de suscripción (%s) para usuario %s", tipo, request.user.id)
     return redirect(init_point)
 
 
