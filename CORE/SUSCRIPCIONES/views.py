@@ -354,6 +354,9 @@ def webhook(request):
 
     logger.info("Webhook MP recibido — type: %s | resource_id: %s | GET: %s | body: %s",
                 notification_type, resource_id, dict(request.GET), data)
+    logger.info("Webhook MP headers — x-signature: %s | x-request-id: %s",
+                request.headers.get("x-signature", ""),
+                request.headers.get("x-request-id", ""))
 
     if not resource_id:
         logger.warning("Webhook MP: notificación sin data.id.")
@@ -377,7 +380,9 @@ def webhook(request):
             logger.info("Webhook MP: pago recurrente %s status '%s'.", resource_id, payment.get("status"))
 
             if payment.get("status") == "approved":
+                logger.info("Webhook MP: pago recurrente aprobado — datos completos: %s", payment)
                 external_ref = payment.get("external_reference", "")
+                logger.info("Webhook MP: external_reference del pago: '%s'", external_ref)
 
                 # Si el pago no trae external_reference, obtenerlo de la suscripción asociada
                 if not external_ref:
