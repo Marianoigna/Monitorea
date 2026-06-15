@@ -172,38 +172,49 @@ def confirmar_cancelacion(request):
 @login_required
 def crear_suscripcion(request, tipo):
     """
-    Redirige al checkout de suscripción de MercadoPago usando el init_point del plan.
-    Agrega back_url y external_reference para retorno e identificación del usuario.
+    Crea una suscripción recurrente (preapproval) en MercadoPago mediante el SDK
+    y redirige al usuario al init_point devuelto por MP.
     `tipo` puede ser 'mensual' o 'anual'.
     """
-    PLANES_ID = {
-        'mensual': getattr(settings, 'MERCADOPAGO_PLAN_ID_MENSUAL', ''),
-        'anual':   getattr(settings, 'MERCADOPAGO_PLAN_ID_ANUAL',   ''),
-    }
-
-    if tipo not in PLANES_ID:
+    if tipo not in ('mensual', 'anual'):
         logger.error("crear_suscripcion: tipo '%s' inválido.", tipo)
         return redirect('suscripciones:planes')
 
-    plan_id = PLANES_ID[tipo]
-    if not plan_id:
-        logger.error("crear_suscripcion: MERCADOPAGO_PLAN_ID_%s no configurado.", tipo.upper())
-        return redirect('suscripciones:planes')
+    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 4999)
+    monto      = precio_mensual if tipo == 'mensual' else precio_mensual * 10
+    frecuencia = 1 if tipo == 'mensual' else 12
+
+    sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
 
     _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
     _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
-    back_url = _public_base + reverse('suscripciones:pago_exitoso')
+    back_url         = _public_base + reverse('suscripciones:pago_exitoso')
+    notification_url = _public_base + reverse('suscripciones:webhook')
 
-    external_ref = f"{request.user.id}:{tipo}"
+    preapproval_data = {
+        "reason": f"Monitorea Premium — {tipo}",
+        "auto_recurring": {
+            "frequency":          frecuencia,
+            "frequency_type":     "months",
+            "transaction_amount": float(monto),
+            "currency_id":        "ARS",
+        },
+        "back_url":          back_url,
+        "payer_email":       request.user.email,
+        "external_reference": f"{request.user.id}:{tipo}",
+        "notification_url":  notification_url,
+        "status":            "pending",
+    }
 
-    init_point = (
-        "https://www.mercadopago.com.ar/subscriptions/checkout"
-        f"?preapproval_plan_id={plan_id}"
-        f"&external_reference={quote(external_ref)}"
-        f"&back_url={quote(back_url, safe='')}"
-    )
-    logger.info("Redirigiendo a checkout de suscripción (%s) para usuario %s", tipo, request.user.id)
-    return redirect(init_point)
+    response = sdk.preapproval().create(preapproval_data)
+
+    if response["status"] in (200, 201):
+        init_point = response["response"]["init_point"]
+        logger.info("Suscripción %s creada para usuario %s — redirigiendo a MP.", tipo, request.user.id)
+        return redirect(init_point)
+
+    logger.error("Error creando suscripción MP (%s): %s", tipo, response)
+    return redirect('suscripciones:planes')
 
 
 # ──────────────────────────────────────────────────────────────────────────────
