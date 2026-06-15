@@ -1,42 +1,39 @@
-import requests
+@login_required
+def crear_suscripcion(request, tipo):
+    if tipo not in ('mensual', 'anual'):
+        return redirect('suscripciones:planes')
 
-ACCESS_TOKEN = "APP_USR-1927667665037758-061120-14dec94107a416966544c6b77d9665e0-3468655152"
-NOTIFICATION_URL = "https://pasarela-prueba-a-mp.onrender.com/suscripciones/webhook/"
-BACK_URL = "https://pasarela-prueba-a-mp.onrender.com/suscripciones/pago-exitoso/"
+    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 39900)
+    monto = precio_mensual if tipo == 'mensual' else precio_mensual * 10
+    frecuencia = 1 if tipo == 'mensual' else 12  # meses
 
-headers = {
-    "Authorization": f"Bearer {ACCESS_TOKEN}",
-    "Content-Type": "application/json",
-}
+    sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
 
-planes = {
-    "mensual": {"frequency": 1,  "frequency_type": "months", "transaction_amount": 29999.0},
-    "anual":   {"frequency": 12, "frequency_type": "months", "transaction_amount": 299999.0},
-}
+    _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
+    _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
+    back_url = _public_base + reverse('suscripciones:pago_exitoso')
+    notification_url = _public_base + reverse('suscripciones:webhook')
 
-for tipo, recurring in planes.items():
-    body = {
-        "reason": f"Monitorea Premium {tipo.capitalize()}",
+    preapproval_data = {
+        "reason": f"Monitorea Premium — {tipo}",
         "auto_recurring": {
-            "frequency": recurring["frequency"],
-            "frequency_type": recurring["frequency_type"],
-            "transaction_amount": recurring["transaction_amount"],
+            "frequency": frecuencia,
+            "frequency_type": "months",
+            "transaction_amount": float(monto),
             "currency_id": "ARS",
         },
-        "back_url": BACK_URL,
-        "notification_url": NOTIFICATION_URL,
+        "back_url": back_url,
+        "payer_email": request.user.email,
+        "external_reference": f"{request.user.id}:{tipo}",   # ← viaja el usuario
+        "notification_url": notification_url,                 # ← viaja el webhook
+        "status": "pending",
     }
-    resp = requests.post(
-        "https://api.mercadopago.com/preapproval_plan",
-        headers=headers,
-        json=body,
-        timeout=10,
-    )
-    print(f"\n=== NUEVO PLAN {tipo.upper()} ===")
-    print("HTTP Status:", resp.status_code)
-    data = resp.json()
-    print("ID nuevo:", data.get("id"))
-    print("notification_url:", data.get("notification_url"))
-    print("init_point:", data.get("init_point"))
-    if resp.status_code != 201:
-        print("Respuesta completa (error):", data)
+
+    response = sdk.preapproval().create(preapproval_data)
+
+    if response["status"] in (200, 201):
+        init_point = response["response"]["init_point"]
+        return redirect(init_point)
+
+    logger.error("Error creando suscripción MP: %s", response)
+    return redirect('suscripciones:planes')
