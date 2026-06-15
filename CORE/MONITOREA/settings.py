@@ -189,7 +189,7 @@ TWILIO_AUTH_TOKEN    = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')  # ej: whatsapp:+14155238886
 ALERT_COOLDOWN_SEGUNDOS = int(os.environ.get('ALERT_COOLDOWN_SEGUNDOS', '300'))
 
-PRECIO_MENSUAL = 29.999          # precio base en ARS (anual = PRECIO_MENSUAL × 10)
+PRECIO_MENSUAL = 59000          # precio base en ARS (anual = PRECIO_MENSUAL × 10)
 # Email backend — para producción reemplazar con SMTP real
 
 
@@ -203,3 +203,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+
+MERCADOPAGO_PLAN_ID_MENSUAL = os.environ.get('MERCADOPAGO_PLAN_ID_MENSUAL', '')
+MERCADOPAGO_PLAN_ID_ANUAL   = os.environ.get('MERCADOPAGO_PLAN_ID_ANUAL', '')
