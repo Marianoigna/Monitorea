@@ -208,8 +208,12 @@ def crear_suscripcion(request, tipo):
 
     response = sdk.preapproval().create(preapproval_data)
 
+    logger.info("MP preapproval response status: %s", response.get("status"))
+    logger.info("MP preapproval response body: %s", response.get("response"))
+
     if response["status"] in (200, 201):
         init_point = response["response"]["init_point"]
+        logger.info("MP preapproval init_point: %s", init_point)
         logger.info("Suscripción %s creada para usuario %s — redirigiendo a MP.", tipo, request.user.id)
         return redirect(init_point)
 
@@ -347,6 +351,9 @@ def webhook(request):
 
     notification_type = data.get("type") or data.get("action", "")
     resource_id = data.get("data", {}).get("id")
+
+    logger.info("Webhook MP recibido — type: %s | resource_id: %s | GET: %s | body: %s",
+                notification_type, resource_id, dict(request.GET), data)
 
     if not resource_id:
         logger.warning("Webhook MP: notificación sin data.id.")
