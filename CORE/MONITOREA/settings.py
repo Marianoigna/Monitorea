@@ -170,6 +170,7 @@ MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
 MERCADOPAGO_PLAN_ID      = os.environ.get('MERCADOPAGO_PLAN_ID', '')
 MERCADOPAGO_BACK_URL     = os.environ.get('MERCADOPAGO_BACK_URL', 'http://127.0.0.1:8000/')
 MERCADOPAGO_WEBHOOK_SECRET = os.getenv("MERCADOPAGO_WEBHOOK_SECRET", "")
+MERCADOPAGO_WEBHOOK_SECRET = os.environ.get('MERCADOPAGO_WEBHOOK_SECRET', '')
 
 # ── CSRF ─────────────────────────────────────────────────────
 CSRF_TRUSTED_ORIGINS = os.environ.get(
@@ -188,3 +189,8 @@ TWILIO_ACCOUNT_SID   = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN    = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')  # ej: whatsapp:+14155238886
 ALERT_COOLDOWN_SEGUNDOS = int(os.environ.get('ALERT_COOLDOWN_SEGUNDOS', '300'))
+
+PRECIO_MENSUAL = 29999          # precio base en ARS (anual = PRECIO_MENSUAL × 10)
+DEFAULT_FROM_EMAIL = 'noreply@monitorea.app'   # dirección remitente para emails
+# Email backend — para producción reemplazar con SMTP real
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

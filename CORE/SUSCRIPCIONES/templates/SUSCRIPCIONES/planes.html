@@ -10,22 +10,35 @@
       <i class="bi bi-arrow-left me-1"></i>Volver al dashboard
     </a>
 
+    {% if not request.user.tiene_premium_activo %}
     <span class="badge bg-danger-subtle text-danger fw-semibold px-3 py-2 rounded-pill mb-3 d-block mx-auto" style="width:fit-content">
       <i class="bi bi-lock me-1"></i>Acceso restringido
     </span>
-
     <h1 class="display-5 fw-bold mb-2">
       Eleg&iacute; tu <span class="text-primary">plan</span>
     </h1>
     <p class="lead text-body-secondary mx-auto" style="max-width:480px">
       Para acceder a Reportes y Alertas necesit&aacute;s una suscripci&oacute;n Premium activa.
     </p>
+    {% else %}
+    <span class="badge bg-success-subtle text-success fw-semibold px-3 py-2 rounded-pill mb-3 d-block mx-auto" style="width:fit-content">
+      <i class="bi bi-patch-check-fill me-1"></i>Suscripci&oacute;n activa
+    </span>
+    <h1 class="display-5 fw-bold mb-2">Tu <span class="text-primary">plan actual</span></h1>
+    <p class="lead text-body-secondary mx-auto" style="max-width:480px">
+      Administr&aacute; tu suscripci&oacute;n Premium desde aqu&iacute;.
+    </p>
+    {% endif %}
   </div>
 
+  {# ═══════════════════════════════════════════════════════════════════════════
+     CASO A — Usuario SIN premium: mostrar las 3 tarjetas de planes
+  ═══════════════════════════════════════════════════════════════════════════ #}
+  {% if not request.user.tiene_premium_activo %}
   <div class="row g-4 justify-content-center">
 
     {# ── Plan Gratuito ── #}
-    <div class="col-12 col-sm-8 col-md-5 col-lg-4">
+    <div class="col-12 col-sm-8 col-md-4 col-lg-3">
       <div class="card border h-100">
         <div class="card-body d-flex flex-column p-4">
           <h5 class="card-title fw-bold mb-1">Gratuito</h5>
@@ -55,19 +68,54 @@
       </div>
     </div>
 
-    {# ── Plan Premium ── #}
-    <div class="col-12 col-sm-8 col-md-5 col-lg-4">
-      <div class="card border border-primary h-100">
+    {# ── Plan Mensual ── #}
+    <div class="col-12 col-sm-8 col-md-4 col-lg-3">
+      <div class="card border h-100">
+        <div class="card-body d-flex flex-column p-4">
+          <h5 class="card-title fw-bold mb-1">Mensual</h5>
+          <div class="mb-1">
+            <span class="display-5 fw-bold">${{ precio_mensual|floatformat:"0" }}</span>
+            <span class="text-body-secondary">/ mes</span>
+          </div>
+          <p class="text-body-secondary small mb-4">Acceso completo con renovaci&oacute;n mensual.</p>
+          <ul class="list-unstyled mb-4 flex-grow-1">
+            <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Dashboard en tiempo real
+            </li>
+            <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Reportes hist&oacute;ricos
+            </li>
+            <li class="d-flex align-items-center gap-2 py-2">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Alertas configurables
+            </li>
+          </ul>
+          <a href="{% url 'suscripciones:suscribirse' %}" class="btn btn-outline-primary w-100 fw-semibold">
+            Contratar mensual <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    {# ── Plan Anual (Recomendado) ── #}
+    <div class="col-12 col-sm-8 col-md-4 col-lg-3">
+      <div class="card border border-primary h-100 shadow">
         <div class="card-header bg-primary text-white text-center fw-bold py-2">
           <i class="bi bi-star-fill me-1"></i>Recomendado
         </div>
         <div class="card-body d-flex flex-column p-4">
-          <h5 class="card-title fw-bold mb-1 text-primary">Premium</h5>
+          <h5 class="card-title fw-bold mb-1 text-primary">Anual</h5>
           <div class="mb-1">
-            <span class="display-5 fw-bold">$4.999</span>
-            <span class="text-body-secondary">/ mes</span>
+            <span class="display-5 fw-bold">${{ precio_anual|floatformat:"0" }}</span>
+            <span class="text-body-secondary">/ a&ntilde;o</span>
           </div>
-          <p class="text-body-secondary small mb-4">Acceso completo a todas las funcionalidades.</p>
+          <p class="text-success small fw-semibold mb-1">
+            <i class="bi bi-piggy-bank me-1"></i>
+            Econ&oacute;mico: 2 meses gratis vs mensual
+          </p>
+          <p class="text-body-secondary small mb-4">Un solo pago anual, sin sorpresas.</p>
           <ul class="list-unstyled mb-4 flex-grow-1">
             <li class="d-flex align-items-center gap-2 py-2 border-bottom">
               <i class="bi bi-check-circle-fill text-success"></i>
@@ -83,12 +131,243 @@
             </li>
           </ul>
           <a href="{% url 'suscripciones:checkout_prueba' %}" class="btn btn-primary w-100 fw-semibold">
-            Contratar ahora <i class="bi bi-arrow-right ms-1"></i>
+            Contratar anual <i class="bi bi-arrow-right ms-1"></i>
           </a>
         </div>
       </div>
     </div>
 
-  </div>
+  </div>{# /row #}
+  {% endif %}
+
+  {# ═══════════════════════════════════════════════════════════════════════════
+     CASO B — Usuario CON premium activo: mostrar tarjeta del plan activo
+  ═══════════════════════════════════════════════════════════════════════════ #}
+  {% if request.user.tiene_premium_activo and suscripcion %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-8 col-md-5 col-lg-4">
+
+      <div class="card border border-{{ color_tarjeta }} h-100 shadow-sm">
+        <div class="card-header bg-{{ color_tarjeta }}{% if color_tarjeta == 'warning' %} text-dark{% else %} text-white{% endif %} text-center fw-bold py-2">
+          {% if color_tarjeta == 'warning' %}
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>Por vencer pronto
+          {% else %}
+            <i class="bi bi-patch-check-fill me-1"></i>Plan activo
+          {% endif %}
+        </div>
+        <div class="card-body d-flex flex-column p-4">
+          <h5 class="card-title fw-bold mb-1 text-{{ color_tarjeta }}">
+            {{ suscripcion.plan.get_nombre_display }}
+          </h5>
+          <p class="text-body-secondary small mb-3">
+            <i class="bi bi-calendar3 me-1"></i>
+            Vence el <strong>{{ suscripcion.fecha_vencimiento|date:"d/m/Y" }}</strong>
+            {% if dias_restantes is not None %}
+              &mdash; quedan <strong>{{ dias_restantes }} d&iacute;a{{ dias_restantes|pluralize }}</strong>
+            {% endif %}
+          </p>
+          <ul class="list-unstyled mb-4 flex-grow-1">
+            <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Dashboard en tiempo real
+            </li>
+            <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Reportes hist&oacute;ricos
+            </li>
+            <li class="d-flex align-items-center gap-2 py-2">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Alertas configurables
+            </li>
+          </ul>
+          <button class="btn btn-{{ color_tarjeta }} w-100 disabled" aria-disabled="true">
+            <i class="bi bi-check2-circle me-1"></i>Suscripci&oacute;n activa
+          </button>
+        </div>
+      </div>
+
+      {# Enlace discreto de cancelación #}
+      <div class="text-center mt-3">
+        <button type="button"
+                class="btn btn-link btn-sm text-body-secondary text-decoration-none"
+                data-bs-toggle="modal"
+                data-bs-target="#modalCancelar"
+                id="btnAbrirModal">
+          <i class="bi bi-x-circle me-1"></i>Anular suscripci&oacute;n
+        </button>
+      </div>
+
+    </div>
+  </div>{# /row #}
+
+  {# ── Modal de cancelación ── #}
+  <div class="modal fade" id="modalCancelar" tabindex="-1" aria-labelledby="modalCancelarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold" id="modalCancelarLabel">
+            <i class="bi bi-shield-exclamation text-warning me-2"></i>Confirmar anulaci&oacute;n
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body pt-2">
+
+          {# Paso 1: Solicitar el código #}
+          <div id="pasoCodigo">
+            <p class="text-body-secondary small mb-3">
+              Para confirmar la cancelaci&oacute;n, te enviaremos un c&oacute;digo de 6 d&iacute;gitos
+              a <strong>{{ request.user.email }}</strong>.
+            </p>
+            <div id="alertaSolicitud" class="alert d-none" role="alert"></div>
+            <button type="button" class="btn btn-outline-warning w-100" id="btnEnviarCodigo">
+              <span id="spinnerEnviar" class="spinner-border spinner-border-sm d-none me-2" role="status"></span>
+              Enviar c&oacute;digo de confirmaci&oacute;n
+            </button>
+          </div>
+
+          {# Paso 2: Ingresar el código #}
+          <div id="pasoConfirmar" class="d-none mt-3">
+            <p class="text-body-secondary small mb-3">
+              <i class="bi bi-envelope-check text-success me-1"></i>
+              C&oacute;digo enviado a <strong>{{ request.user.email }}</strong>.
+              Ingres&aacute;lo a continuaci&oacute;n:
+            </p>
+            <div id="alertaConfirmar" class="alert d-none" role="alert"></div>
+            <div class="mb-3">
+              <input type="text"
+                     class="form-control form-control-lg text-center fw-bold tracking-wider"
+                     id="inputCodigo"
+                     maxlength="6"
+                     placeholder="000000"
+                     inputmode="numeric"
+                     autocomplete="one-time-code"
+                     style="letter-spacing: 0.4em;">
+            </div>
+            <div class="d-grid gap-2">
+              <button type="button" class="btn btn-danger fw-semibold" id="btnConfirmarCancelacion">
+                <span id="spinnerConfirmar" class="spinner-border spinner-border-sm d-none me-2" role="status"></span>
+                Confirmar anulaci&oacute;n
+              </button>
+              <button type="button" class="btn btn-link btn-sm text-body-secondary" id="btnReenviarCodigo">
+                Reenviar c&oacute;digo
+              </button>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>{# /modal #}
+
+  <script>
+  (function () {
+    const URLS = {
+      solicitar: "{% url 'suscripciones:solicitar_codigo_cancelacion' %}",
+      confirmar: "{% url 'suscripciones:confirmar_cancelacion' %}",
+    };
+    const CSRF = "{{ csrf_token }}";
+
+    function mostrarAlerta(el, tipo, mensaje) {
+      el.className = `alert alert-${tipo}`;
+      el.textContent = mensaje;
+      el.classList.remove('d-none');
+    }
+
+    function setLoading(spinner, btn, loading) {
+      spinner.classList.toggle('d-none', !loading);
+      btn.disabled = loading;
+    }
+
+    async function solicitarCodigo() {
+      const alertaEl = document.getElementById('alertaSolicitud');
+      const spinner  = document.getElementById('spinnerEnviar');
+      const btn      = document.getElementById('btnEnviarCodigo');
+
+      alertaEl.classList.add('d-none');
+      setLoading(spinner, btn, true);
+
+      try {
+        const res  = await fetch(URLS.solicitar, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': CSRF },
+        });
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
+          document.getElementById('pasoCodigo').classList.add('d-none');
+          document.getElementById('pasoConfirmar').classList.remove('d-none');
+        } else {
+          mostrarAlerta(alertaEl, 'danger', data.error || 'Ocurri\u00f3 un error. Intent\u00e1 nuevamente.');
+        }
+      } catch {
+        mostrarAlerta(alertaEl, 'danger', 'Error de conexi\u00f3n. Intent\u00e1 nuevamente.');
+      } finally {
+        setLoading(spinner, btn, false);
+      }
+    }
+
+    async function confirmarCancelacion() {
+      const alertaEl = document.getElementById('alertaConfirmar');
+      const spinner  = document.getElementById('spinnerConfirmar');
+      const btn      = document.getElementById('btnConfirmarCancelacion');
+      const codigo   = document.getElementById('inputCodigo').value.trim();
+
+      if (codigo.length !== 6 || !/^\d{6}$/.test(codigo)) {
+        mostrarAlerta(alertaEl, 'warning', 'El c\u00f3digo debe ser de 6 d\u00edgitos.');
+        return;
+      }
+
+      alertaEl.classList.add('d-none');
+      setLoading(spinner, btn, true);
+
+      try {
+        const res  = await fetch(URLS.confirmar, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF,
+          },
+          body: JSON.stringify({ codigo }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
+          window.location.reload();
+        } else {
+          mostrarAlerta(alertaEl, 'danger', data.error || 'C\u00f3digo incorrecto. Intent\u00e1 nuevamente.');
+        }
+      } catch {
+        mostrarAlerta(alertaEl, 'danger', 'Error de conexi\u00f3n. Intent\u00e1 nuevamente.');
+      } finally {
+        setLoading(spinner, btn, false);
+      }
+    }
+
+    // Abrir modal → disparar solicitud de código automáticamente
+    document.getElementById('modalCancelar').addEventListener('show.bs.modal', function () {
+      // Resetear estado del modal
+      document.getElementById('pasoCodigo').classList.remove('d-none');
+      document.getElementById('pasoConfirmar').classList.add('d-none');
+      document.getElementById('alertaSolicitud').classList.add('d-none');
+      document.getElementById('alertaConfirmar').classList.add('d-none');
+      document.getElementById('inputCodigo').value = '';
+    });
+
+    document.getElementById('btnEnviarCodigo').addEventListener('click', solicitarCodigo);
+    document.getElementById('btnReenviarCodigo').addEventListener('click', function () {
+      document.getElementById('pasoConfirmar').classList.add('d-none');
+      document.getElementById('pasoCodigo').classList.remove('d-none');
+    });
+    document.getElementById('btnConfirmarCancelacion').addEventListener('click', confirmarCancelacion);
+  })();
+  </script>
+  {% endif %}
+
 </div>
 {% endblock %}
+

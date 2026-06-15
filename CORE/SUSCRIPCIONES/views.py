@@ -2,6 +2,8 @@ import hashlib
 import hmac
 import json
 import logging
+import random
+import string
 from datetime import timedelta
 from urllib.parse import urlparse
 
@@ -9,8 +11,9 @@ import mercadopago
 import requests
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -22,8 +25,145 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def planes(request):
-    """Página de planes — muestra las opciones de suscripción."""
-    return render(request, 'SUSCRIPCIONES/planes.html')
+    """Página de planes — muestra opciones o el plan activo del usuario."""
+    from SUSCRIPCIONES.models import Plan
+
+    suscripcion = None
+    dias_restantes = None
+    color_tarjeta = 'success'
+
+    try:
+        suscripcion = request.user.suscripcion
+    except Exception:
+        pass
+
+    if suscripcion and suscripcion.esta_activa():
+        delta = suscripcion.fecha_vencimiento - timezone.now()
+        dias_restantes = max(delta.days, 0)
+        es_anual = suscripcion.plan.nombre == Plan.ANUAL
+        umbral = 30 if es_anual else 10
+        if dias_restantes < umbral:
+            color_tarjeta = 'warning'
+
+    # Precio base mensual y anual para mostrar en las tarjetas
+    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 4999)
+    precio_anual = precio_mensual * 10
+
+    context = {
+        'suscripcion': suscripcion,
+        'dias_restantes': dias_restantes,
+        'color_tarjeta': color_tarjeta,
+        'precio_mensual': precio_mensual,
+        'precio_anual': precio_anual,
+    }
+    return render(request, 'SUSCRIPCIONES/planes.html', context)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cancelación de suscripción — flujo por email con código de 6 dígitos
+# ──────────────────────────────────────────────────────────────────────────────
+
+@login_required
+@require_POST
+def solicitar_codigo_cancelacion(request):
+    """
+    Genera un código aleatorio de 6 dígitos, lo guarda en la suscripción y
+    lo envía por correo. Responde JSON.
+    """
+    from SUSCRIPCIONES.models import Suscripcion
+
+    try:
+        suscripcion = request.user.suscripcion
+    except Suscripcion.DoesNotExist:
+        return JsonResponse({'error': 'No tenés una suscripción activa.'}, status=400)
+
+    if not suscripcion.esta_activa():
+        return JsonResponse({'error': 'No tenés una suscripción activa.'}, status=400)
+
+    codigo = ''.join(random.choices(string.digits, k=6))
+    suscripcion.codigo_cancelacion = codigo
+    suscripcion.save(update_fields=['codigo_cancelacion'])
+
+    try:
+        send_mail(
+            subject='Código de cancelación — Monitorea',
+            message=(
+                f'Hola {request.user.username},\n\n'
+                f'Tu código de confirmación para anular la suscripción es:\n\n'
+                f'    {codigo}\n\n'
+                'Si no solicitaste este código, ignorá este mensaje.\n\n'
+                'Equipo Monitorea'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[request.user.email],
+            fail_silently=False,
+        )
+    except Exception as exc:
+        logger.error("Error enviando email de cancelación a %s: %s", request.user.email, exc)
+        return JsonResponse({'error': 'No se pudo enviar el correo. Intentá nuevamente.'}, status=500)
+
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def confirmar_cancelacion(request):
+    """
+    Verifica el código ingresado, cancela la suscripción en Mercado Pago y
+    actualiza el estado local del usuario. Responde JSON.
+    """
+    from SUSCRIPCIONES.models import Suscripcion
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Solicitud inválida.'}, status=400)
+
+    codigo_ingresado = str(data.get('codigo', '')).strip()
+
+    try:
+        suscripcion = request.user.suscripcion
+    except Suscripcion.DoesNotExist:
+        return JsonResponse({'error': 'No tenés una suscripción activa.'}, status=400)
+
+    if not suscripcion.esta_activa():
+        return JsonResponse({'error': 'No tenés una suscripción activa.'}, status=400)
+
+    if not suscripcion.codigo_cancelacion or suscripcion.codigo_cancelacion != codigo_ingresado:
+        return JsonResponse({'error': 'Código incorrecto. Revisá tu correo e intentá nuevamente.'}, status=400)
+
+    # Cancelar en Mercado Pago si hay una suscripción recurrente vinculada
+    if suscripcion.gateway_subscription_id:
+        try:
+            sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+            response = sdk.preapproval().update(
+                suscripcion.gateway_subscription_id,
+                {"status": "cancelled"},
+            )
+            if response.get("status") not in (200, 201):
+                logger.error("Error cancelando suscripción MP (id=%s): %s",
+                             suscripcion.gateway_subscription_id, response)
+                return JsonResponse(
+                    {'error': 'No se pudo cancelar en Mercado Pago. Intentá más tarde.'},
+                    status=502,
+                )
+        except Exception as exc:
+            logger.error("Excepción al cancelar suscripción MP: %s", exc)
+            return JsonResponse({'error': 'Error al comunicarse con Mercado Pago.'}, status=502)
+
+    # Actualizar estado local de forma atómica
+    with transaction.atomic():
+        suscripcion.estado = Suscripcion.CANCELADA
+        suscripcion.codigo_cancelacion = None
+        suscripcion.save(update_fields=['estado', 'codigo_cancelacion'])
+
+        user = request.user
+        user.is_premium = False
+        user.premium_until = None
+        user.save(update_fields=['is_premium', 'premium_until'])
+
+    logger.info("Suscripción cancelada para el usuario %s.", user.username)
+    return JsonResponse({'ok': True})
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -104,7 +244,7 @@ def validar_firma_mp(request, data_id):
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers para activar premium / registrar pago
 # ──────────────────────────────────────────────────────────────────────────────
-def _activar_premium(user, monto, referencia):
+def _activar_premium(user, monto, referencia, gateway_subscription_id=None):
     """Activa premium, crea/actualiza Suscripcion y registra el Pago. Atómico."""
     from SUSCRIPCIONES.models import Pago, Plan, Suscripcion
 
@@ -122,13 +262,18 @@ def _activar_premium(user, monto, referencia):
             nombre=Plan.PREMIUM,
             defaults={"precio_mensual": monto or 0},
         )
+
+        sub_defaults = {
+            "plan": plan_premium,
+            "estado": Suscripcion.ACTIVA,
+            "fecha_vencimiento": nueva_fecha,
+        }
+        if gateway_subscription_id:
+            sub_defaults["gateway_subscription_id"] = gateway_subscription_id
+
         suscripcion, created = Suscripcion.objects.update_or_create(
             usuario=user,
-            defaults={
-                "plan": plan_premium,
-                "estado": Suscripcion.ACTIVA,
-                "fecha_vencimiento": nueva_fecha,
-            },
+            defaults=sub_defaults,
         )
         if created:
             logger.info("Suscripcion creada para %s", user.username)
@@ -241,7 +386,7 @@ def webhook(request):
                     return HttpResponse(status=200)
 
                 monto = preapproval.get("auto_recurring", {}).get("transaction_amount", 0)
-                _activar_premium(user, monto, resource_id)
+                _activar_premium(user, monto, resource_id, gateway_subscription_id=resource_id)
 
     except requests.RequestException as exc:
         logger.error("Webhook MP: error consultando API MP (%s): %s", resource_id, exc)
