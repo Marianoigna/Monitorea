@@ -91,7 +91,7 @@
               Alertas configurables
             </li>
           </ul>
-          <a href="{% url 'suscripciones:suscribirse' %}" class="btn btn-outline-primary w-100 fw-semibold">
+          <a href="{% url 'suscripciones:suscribirse' 'mensual' %}" class="btn btn-outline-primary w-100 fw-semibold">
             Contratar mensual <i class="bi bi-arrow-right ms-1"></i>
           </a>
         </div>
@@ -130,7 +130,7 @@
               Alertas configurables
             </li>
           </ul>
-          <a href="{% url 'suscripciones:checkout_prueba' %}" class="btn btn-primary w-100 fw-semibold">
+          <a href="{% url 'suscripciones:suscribirse' 'anual' %}" class="btn btn-primary w-100 fw-semibold">
             Contratar anual <i class="bi bi-arrow-right ms-1"></i>
           </a>
         </div>

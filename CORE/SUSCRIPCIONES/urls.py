@@ -6,7 +6,7 @@ app_name = 'suscripciones'
 urlpatterns = [
     path('planes/', views.planes, name='planes'),
     # Flujo de suscripción recurrente (preapproval — se activa cuando el plan esté creado en MP)
-    path('suscribirse/',    views.crear_suscripcion, name='suscribirse'),
+    path('suscribirse/<str:tipo>/', views.crear_suscripcion, name='suscribirse'),
     path('webhook/',        views.webhook,           name='webhook'),
 
     # Flujo de prueba obligatorio para validar la integración en el panel de MP

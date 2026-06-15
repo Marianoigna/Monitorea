@@ -170,28 +170,42 @@ def confirmar_cancelacion(request):
 # Suscripción recurrente (Preapproval) — débito automático mensual
 # ──────────────────────────────────────────────────────────────────────────────
 @login_required
-def crear_suscripcion(request):
+def crear_suscripcion(request, tipo):
     """
-    Crea una suscripción recurrente (preapproval) en MercadoPago a partir de un
-    plan previamente creado (MERCADOPAGO_PLAN_ID) y redirige al usuario al
-    formulario de pago de MP.
+    Crea una suscripción recurrente (preapproval) en MercadoPago.
+    `tipo` puede ser 'mensual' o 'anual'.
 
     Requiere en settings:
-      MERCADOPAGO_ACCESS_TOKEN  - token de acceso de la app MP
-      MERCADOPAGO_PLAN_ID       - ID del plan de suscripción creado en MP
-
-    El external_reference lleva el id del usuario para identificarlo en el webhook.
+      MERCADOPAGO_ACCESS_TOKEN     - token de acceso de la app MP
+      MERCADOPAGO_PLAN_ID_MENSUAL  - ID del plan mensual creado en MP
+      MERCADOPAGO_PLAN_ID_ANUAL    - ID del plan anual creado en MP
+      MERCADOPAGO_BACK_URL         - URL base pública del servidor
     """
+    PLANES_ID = {
+        'mensual': getattr(settings, 'MERCADOPAGO_PLAN_ID_MENSUAL', ''),
+        'anual':   getattr(settings, 'MERCADOPAGO_PLAN_ID_ANUAL',   ''),
+    }
+
+    if tipo not in PLANES_ID:
+        logger.error("crear_suscripcion: tipo '%s' inválido.", tipo)
+        return redirect('suscripciones:planes')
+
+    plan_id = PLANES_ID[tipo]
+    if not plan_id:
+        logger.error("crear_suscripcion: MERCADOPAGO_PLAN_ID_%s no está configurado.", tipo.upper())
+        return redirect('suscripciones:planes')
+
     sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
 
     _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
     _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
 
     subscription_data = {
-        "preapproval_plan_id": settings.MERCADOPAGO_PLAN_ID,
+        "preapproval_plan_id": plan_id,
         "payer_email": request.user.email,
-        "external_reference": str(request.user.id),
+        "external_reference": f"{request.user.id}:{tipo}",
         "back_url": _public_base + reverse('suscripciones:pago_exitoso'),
+        "notification_url": _public_base + reverse('suscripciones:webhook'),
     }
 
     response = sdk.preapproval().create(subscription_data)
@@ -200,7 +214,7 @@ def crear_suscripcion(request):
         init_point = response["response"]["init_point"]
         return redirect(init_point)
 
-    logger.error("Error creando suscripción MP: %s", response)
+    logger.error("Error creando suscripción MP (%s): %s", tipo, response)
     return redirect('suscripciones:planes')
 
 
@@ -244,27 +258,33 @@ def validar_firma_mp(request, data_id):
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers para activar premium / registrar pago
 # ──────────────────────────────────────────────────────────────────────────────
-def _activar_premium(user, monto, referencia, gateway_subscription_id=None):
+def _activar_premium(user, monto, referencia, gateway_subscription_id=None, dias=30, tipo_plan=None):
     """Activa premium, crea/actualiza Suscripcion y registra el Pago. Atómico."""
     from SUSCRIPCIONES.models import Pago, Plan, Suscripcion
 
     with transaction.atomic():
         now = timezone.now()
         base = user.premium_until if (user.premium_until and user.premium_until > now) else now
-        nueva_fecha = base + timedelta(days=30)
+        nueva_fecha = base + timedelta(days=dias)
 
         user.is_premium = True
         user.premium_until = nueva_fecha
         user.save(update_fields=["is_premium", "premium_until"])
-        logger.info("Premium activado para %s hasta %s", user.username, nueva_fecha)
+        logger.info("Premium activado para %s hasta %s (%s días)", user.username, nueva_fecha, dias)
 
-        plan_premium, _ = Plan.objects.get_or_create(
-            nombre=Plan.PREMIUM,
+        # Elegir el tipo de plan según lo indicado; por defecto Plan.PREMIUM (legado)
+        _nombre_plan = {
+            'mensual': Plan.MENSUAL,
+            'anual':   Plan.ANUAL,
+        }.get(tipo_plan, Plan.PREMIUM)
+
+        plan_obj, _ = Plan.objects.get_or_create(
+            nombre=_nombre_plan,
             defaults={"precio_mensual": monto or 0},
         )
 
         sub_defaults = {
-            "plan": plan_premium,
+            "plan": plan_obj,
             "estado": Suscripcion.ACTIVA,
             "fecha_vencimiento": nueva_fecha,
         }
@@ -377,16 +397,25 @@ def webhook(request):
 
             # status 'authorized' = suscripción activa
             if estado == "authorized":
-                user = _buscar_usuario(
-                    preapproval.get("external_reference"),
-                    preapproval.get("payer_email", ""),
-                )
+                external_ref = preapproval.get("external_reference", "")
+                # external_reference puede ser "<user_id>:mensual" o "<user_id>:anual"
+                ref_parts = str(external_ref).split(":")
+                user_id = ref_parts[0]
+                tipo = ref_parts[1] if len(ref_parts) > 1 else 'mensual'
+
+                user = _buscar_usuario(user_id, preapproval.get("payer_email", ""))
                 if not user:
                     logger.warning("Webhook MP: usuario no encontrado (sub %s).", resource_id)
                     return HttpResponse(status=200)
 
                 monto = preapproval.get("auto_recurring", {}).get("transaction_amount", 0)
-                _activar_premium(user, monto, resource_id, gateway_subscription_id=resource_id)
+                dias  = 365 if tipo == 'anual' else 30
+                _activar_premium(
+                    user, monto, resource_id,
+                    gateway_subscription_id=resource_id,
+                    dias=dias,
+                    tipo_plan=tipo,
+                )
 
     except requests.RequestException as exc:
         logger.error("Webhook MP: error consultando API MP (%s): %s", resource_id, exc)
