@@ -360,8 +360,86 @@ def webhook(request):
     headers = {"Authorization": f"Bearer {settings.MERCADOPAGO_ACCESS_TOKEN}"}
 
     try:
-        # ── A. Notificación de PAGO ───────────────────────────────────────────
-        if "payment" in notification_type:
+        # ── A. Pago recurrente de suscripción ─────────────────────────────────
+        if "subscription_authorized_payment" in notification_type:
+            mp_url = f"https://api.mercadopago.com/v1/payments/{resource_id}"
+            resp = requests.get(mp_url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            payment = resp.json()
+
+            logger.info("Webhook MP: pago recurrente %s status '%s'.", resource_id, payment.get("status"))
+
+            if payment.get("status") == "approved":
+                external_ref = payment.get("external_reference", "")
+
+                # Si el pago no trae external_reference, obtenerlo de la suscripción asociada
+                if not external_ref:
+                    preapproval_id = (
+                        payment.get("metadata", {}).get("preapproval_id")
+                        or payment.get("preapproval_id")
+                    )
+                    if preapproval_id:
+                        try:
+                            sub_resp = requests.get(
+                                f"https://api.mercadopago.com/preapproval/{preapproval_id}",
+                                headers=headers,
+                                timeout=10,
+                            )
+                            sub_resp.raise_for_status()
+                            external_ref = sub_resp.json().get("external_reference", "")
+                        except requests.RequestException as exc:
+                            logger.error("Webhook MP: error consultando preapproval %s: %s", preapproval_id, exc)
+
+                ref_parts = str(external_ref).split(":")
+                user_id = ref_parts[0]
+                tipo    = ref_parts[1] if len(ref_parts) > 1 else 'mensual'
+
+                user = _buscar_usuario(user_id, payment.get("payer", {}).get("email", ""))
+                if not user:
+                    logger.warning("Webhook MP: usuario no encontrado (pago recurrente %s).", resource_id)
+                    return HttpResponse(status=200)
+
+                dias = 365 if tipo == 'anual' else 30
+                _activar_premium(
+                    user,
+                    payment.get("transaction_amount", 0),
+                    payment.get("id", resource_id),
+                    dias=dias,
+                    tipo_plan=tipo,
+                )
+
+        # ── B. Alta / cambio de estado de suscripción recurrente ──────────────
+        elif "preapproval" in notification_type or "subscription" in notification_type:
+            mp_url = f"https://api.mercadopago.com/preapproval/{resource_id}"
+            resp = requests.get(mp_url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            preapproval = resp.json()
+
+            estado = preapproval.get("status")
+            logger.info("Webhook MP: suscripción %s status '%s'.", resource_id, estado)
+
+            if estado == "authorized":
+                external_ref = preapproval.get("external_reference", "")
+                ref_parts = str(external_ref).split(":")
+                user_id = ref_parts[0]
+                tipo    = ref_parts[1] if len(ref_parts) > 1 else 'mensual'
+
+                user = _buscar_usuario(user_id, preapproval.get("payer_email", ""))
+                if not user:
+                    logger.warning("Webhook MP: usuario no encontrado (sub %s).", resource_id)
+                    return HttpResponse(status=200)
+
+                monto = preapproval.get("auto_recurring", {}).get("transaction_amount", 0)
+                dias  = 365 if tipo == 'anual' else 30
+                _activar_premium(
+                    user, monto, resource_id,
+                    gateway_subscription_id=resource_id,
+                    dias=dias,
+                    tipo_plan=tipo,
+                )
+
+        # ── C. Pago único (Checkout Pro) ──────────────────────────────────────
+        elif "payment" in notification_type:
             mp_url = f"https://api.mercadopago.com/v1/payments/{resource_id}"
             resp = requests.get(mp_url, headers=headers, timeout=10)
             resp.raise_for_status()
@@ -382,38 +460,6 @@ def webhook(request):
                     user,
                     payment.get("transaction_amount", 0),
                     payment.get("id", resource_id),
-                )
-
-        # ── B. Notificación de SUSCRIPCIÓN recurrente ─────────────────────────
-        elif "preapproval" in notification_type or "subscription" in notification_type:
-            mp_url = f"https://api.mercadopago.com/preapproval/{resource_id}"
-            resp = requests.get(mp_url, headers=headers, timeout=10)
-            resp.raise_for_status()
-            preapproval = resp.json()
-
-            estado = preapproval.get("status")
-            logger.info("Webhook MP: suscripción %s status '%s'.", resource_id, estado)
-
-            # status 'authorized' = suscripción activa
-            if estado == "authorized":
-                external_ref = preapproval.get("external_reference", "")
-                # external_reference puede ser "<user_id>:mensual" o "<user_id>:anual"
-                ref_parts = str(external_ref).split(":")
-                user_id = ref_parts[0]
-                tipo = ref_parts[1] if len(ref_parts) > 1 else 'mensual'
-
-                user = _buscar_usuario(user_id, preapproval.get("payer_email", ""))
-                if not user:
-                    logger.warning("Webhook MP: usuario no encontrado (sub %s).", resource_id)
-                    return HttpResponse(status=200)
-
-                monto = preapproval.get("auto_recurring", {}).get("transaction_amount", 0)
-                dias  = 365 if tipo == 'anual' else 30
-                _activar_premium(
-                    user, monto, resource_id,
-                    gateway_subscription_id=resource_id,
-                    dias=dias,
-                    tipo_plan=tipo,
                 )
 
     except requests.RequestException as exc:
