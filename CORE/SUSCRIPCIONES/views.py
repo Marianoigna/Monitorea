@@ -194,43 +194,36 @@ def crear_suscripcion(request, tipo):
     plan_id = getattr(settings, plan_id_key, '')
 
     if plan_id:
-        preapproval_data = {
-            "preapproval_plan_id": plan_id,
-            "payer_email":        request.user.email,
-            "external_reference": external_ref,
-            "back_url":           back_url,
-            "notification_url":   notification_url,
-            "status":             "pending",
-        }
-        logger.info(
-            "crear_suscripcion — tipo: %s | plan_id: %s | external_reference: %s",
-            tipo, plan_id, external_ref,
-        )
-    else:
-        # Fallback: preapproval independiente (sin plan_id)
-        precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 30000)
-        monto      = precio_mensual if tipo == 'mensual' else precio_mensual * 10
-        frecuencia = 1 if tipo == 'mensual' else 12
-        start_date = timezone.now().strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
-        preapproval_data = {
-            "reason": f"Monitorea Premium — {tipo}",
-            "auto_recurring": {
-                "frequency":          frecuencia,
-                "frequency_type":     "months",
-                "transaction_amount": float(monto),
-                "currency_id":        "ARS",
-                "start_date":         start_date,
-            },
-            "back_url":           back_url,
-            "payer_email":        request.user.email,
-            "external_reference": external_ref,
-            "notification_url":   notification_url,
-            "status":             "pending",
-        }
-        logger.info(
-            "crear_suscripcion (sin plan_id) — tipo: %s | monto: %s | external_reference: %s",
-            tipo, monto, external_ref,
-        )
+        # Con preapproval_plan, el flujo es redirigir al init_point del plan.
+        # MP maneja el checkout y luego notifica al webhook con subscription_preapproval.
+        init_point = f"https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id={plan_id}"
+        logger.info("crear_suscripcion — tipo: %s | plan_id: %s | redirigiendo a init_point", tipo, plan_id)
+        return redirect(init_point)
+
+    # Fallback: preapproval independiente (sin plan_id configurado)
+    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 30000)
+    monto      = precio_mensual if tipo == 'mensual' else precio_mensual * 10
+    frecuencia = 1 if tipo == 'mensual' else 12
+    start_date = timezone.now().strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
+    preapproval_data = {
+        "reason": f"Monitorea Premium — {tipo}",
+        "auto_recurring": {
+            "frequency":          frecuencia,
+            "frequency_type":     "months",
+            "transaction_amount": float(monto),
+            "currency_id":        "ARS",
+            "start_date":         start_date,
+        },
+        "back_url":           back_url,
+        "payer_email":        request.user.email,
+        "external_reference": external_ref,
+        "notification_url":   notification_url,
+        "status":             "pending",
+    }
+    logger.info(
+        "crear_suscripcion (sin plan_id) — tipo: %s | monto: %s | external_reference: %s",
+        tipo, monto, external_ref,
+    )
 
     response = sdk.preapproval().create(preapproval_data)
 
