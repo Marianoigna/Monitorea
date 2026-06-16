@@ -15,7 +15,7 @@
 ║  ✅  MQTT bridge          ║  Suscriptor autónomo en hilo de fondo         ║
 ║  ✅  Control de acceso    ║  @requiere_premium · redirect a planes        ║
 ║  ✅  Página de planes     ║  Cards Gratis / Premium · MercadoPago TEST    ║
-║  ✅  MercadoPago          ║  Checkout Pro · webhook automático            ║
+║  ✅  MercadoPago          ║  Suscripciones recurrentes (Preapproval) · webhook · cancelación por email ║
 ║  ✅  Bootstrap UI         ║  base.html · tema claro/oscuro · sidebar      ║
 ║  ✅  Reportes             ║  Históricos · Chart.js · CSV · 🔒 Premium     ║
 ║  ✅  Alertas              ║  Umbrales · WhatsApp Twilio · 🔒 Premium      ║
@@ -692,28 +692,41 @@ Núcleo del modelo de negocio. Determina qué puede hacer cada usuario.
 | URL | Vista | Descripción |
 |-----|-------|-------------|
 | `/suscripciones/planes/` | `planes` | 🔒 Login requerido · cards Gratis/Premium |
-| `/suscripciones/checkout-prueba/` | `checkout_pro_prueba` | Genera preferencia MP y redirige |
-| `/suscripciones/webhook/` | `webhook` | Recibe notificaciones de MP |
-| `/suscripciones/pago-exitoso/` | `pago_exitoso` | Pantalla de confirmación |
+| `/suscripciones/suscribirse/<tipo>/` | `crear_suscripcion` | Crea preapproval directo en MP y redirige al `init_point` |
+| `/suscripciones/webhook/` | `webhook` | Recibe notificaciones de MP (preapproval + pagos) |
+| `/suscripciones/pago-exitoso/` | `pago_exitoso` | Pantalla de confirmación post-checkout |
 | `/suscripciones/pago-fallido/` | `pago_fallido` | Pantalla de error |
+| `/suscripciones/checkout-prueba/` | `checkout_pro_prueba` | Preferencia Checkout Pro para pruebas de integración |
+| `/suscripciones/solicitar-codigo-cancelacion/` | `solicitar_codigo_cancelacion` | Envía código de 6 dígitos por email |
+| `/suscripciones/confirmar-cancelacion/` | `confirmar_cancelacion` | Verifica código y cancela en MP + BD |
 
-**Integración MercadoPago:**
+**Integración MercadoPago — Preapproval directo:**
 ```python
-# checkout_pro_prueba usa solo ACCESS_TOKEN (no requiere PLAN_ID)
+# crear_suscripcion crea una suscripción individual con external_reference embebido
 sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
-preference_data = {
-    "items": [{"title": "Suscripción Premium", "quantity": 1, "unit_price": 4999}],
-    "back_urls": {"success": ..., "failure": ..., "pending": ...},
-    "auto_return": "approved"
+preapproval_data = {
+    "reason": f"Monitorea Premium — {tipo}",
+    "auto_recurring": {
+        "frequency": 1,           # 1 mes (o 12 para anual)
+        "frequency_type": "months",
+        "transaction_amount": float(PRECIO_MENSUAL),
+        "currency_id": "ARS",
+    },
+    "external_reference": f"{user.id}:{tipo}",   # clave para identificar al usuario en el webhook
+    "back_url": back_url,
+    "notification_url": notification_url,
+    "status": "pending",
 }
+# → MP devuelve init_point al que se redirige al usuario
 ```
 
 | Archivo | Responsabilidad |
 |---------|----------------|
 | `models.py` | `Plan` · `Suscripcion` · `Pago` |
 | `decorators.py` | `@requiere_premium` → redirect a `/suscripciones/planes/` |
-| `views.py` | `planes()` · `checkout_pro_prueba()` · `webhook()` |
-| `templates/planes.html` | Cards Gratuito/Premium + botón "Contratar ahora" |
+| `views.py` | `planes()` · `crear_suscripcion()` · `webhook()` · `solicitar_codigo_cancelacion()` · `confirmar_cancelacion()` |
+| `crear_planes.py` | Script de utilidad para crear planes plantilla en MP (no requerido para el flujo principal) |
+| `templates/planes.html` | Cards Gratuito/Premium + botones Mensual/Anual + flujo de cancelación |
 
 ---
 
@@ -1015,7 +1028,9 @@ flowchart TD
 | `MERCADOPAGO_PUBLIC_KEY` | Clave pública para el frontend (Checkout Bricks, si aplica) | `APP_USR-...` |
 | `MERCADOPAGO_BACK_URL` | URL base pública de la app (para construir `back_url` y `notification_url`) | `https://tu-app.onrender.com` |
 | `MERCADOPAGO_WEBHOOK_SECRET` | Clave secreta del webhook (panel MP → Notificaciones) | `abc123...` |
-| `PRECIO_MENSUAL` | Precio en ARS del plan mensual (el anual = × 10) | `30000` |
+| `PRECIO_MENSUAL` | Precio en ARS del plan mensual (el anual = × 10). Modifiable sin tocar código. | `30000` |
+
+> ⚠️ **Webhook URL en el panel de MP:** Asegurate de configurar la URL de notificaciones en tu aplicación de MP como `https://tu-app.onrender.com/suscripciones/webhook/` (con la ruta completa). Si apunta a la raíz `/`, MP enviará notificaciones allí y recibirás errores CSRF `403 Forbidden`.
 
 > ⚠️ Nunca commitas valores reales. Usá variables de entorno en Render / `.env` local.
 
@@ -1026,6 +1041,9 @@ flowchart TD
 - [ ] **Reactivar validación estricta de firma** en `validar_firma_mp` — hoy está en modo `WARNING` temporal para facilitar el debugging. Una vez confirmado que `MERCADOPAGO_WEBHOOK_SECRET` es correcto, revertir el `return True` a `return False`.
 - [ ] **Verificar rama `subscription_authorized_payment`** — revisar que el endpoint `/v1/payments/{id}` sea el correcto para pagos recurrentes de preapproval directo (podría ser `/preapproval_payment/{id}`).
 - [ ] Considerar agregar email de confirmación al usuario cuando su Premium se activa correctamente.
+- [x] **PRECIO_MENSUAL configurable por env var** — `settings.py` ahora lee `os.environ.get('PRECIO_MENSUAL', 30000)`. Cambiarlo en Render sin tocar código.
+- [x] **Cancelación de suscripción por email** — flujo completo implementado: código de 6 dígitos enviado por email, verificado, y cancelación en MP + BD de forma atómica.
+- [x] **Webhook URL** — configurar en el panel de MP como `.../suscripciones/webhook/` (no la raíz `/`).
 TEMP_MIN=-25.0
 VOLT_MAX=240.0
 VOLT_MIN=190.0
