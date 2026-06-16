@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 
-import dj_database_url
+import dj_database_url # pyright: ignore[reportMissingImports]
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -165,10 +165,12 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # ── MercadoPago ───────────────────────────────────────────────
-MERCADOPAGO_PUBLIC_KEY   = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
-MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
-MERCADOPAGO_PLAN_ID      = os.environ.get('MERCADOPAGO_PLAN_ID', '')
-MERCADOPAGO_BACK_URL     = os.environ.get('MERCADOPAGO_BACK_URL', 'http://127.0.0.1:8000/')
+MERCADOPAGO_PUBLIC_KEY      = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
+MERCADOPAGO_ACCESS_TOKEN    = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
+MERCADOPAGO_PLAN_ID_MENSUAL = os.environ.get('MERCADOPAGO_PLAN_ID_MENSUAL', '')
+MERCADOPAGO_PLAN_ID_ANUAL   = os.environ.get('MERCADOPAGO_PLAN_ID_ANUAL', '')
+MERCADOPAGO_BACK_URL        = os.environ.get('MERCADOPAGO_BACK_URL', 'http://127.0.0.1:8000/')
+MERCADOPAGO_WEBHOOK_SECRET  = os.environ.get('MERCADOPAGO_WEBHOOK_SECRET', '')
 
 # ── CSRF ─────────────────────────────────────────────────────
 CSRF_TRUSTED_ORIGINS = os.environ.get(
@@ -187,3 +189,20 @@ TWILIO_ACCOUNT_SID   = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN    = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')  # ej: whatsapp:+14155238886
 ALERT_COOLDOWN_SEGUNDOS = int(os.environ.get('ALERT_COOLDOWN_SEGUNDOS', '300'))
+
+PRECIO_MENSUAL = int(os.environ.get('PRECIO_MENSUAL', 30000))  # precio base en ARS — el anual = × 10
+# Email backend — para producción reemplazar con SMTP real
+
+
+# ──────────────────────────────────────────────
+# Configuración de Email (SMTP Gmail)
+# ──────────────────────────────────────────────
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+

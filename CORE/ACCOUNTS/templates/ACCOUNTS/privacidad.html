@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitorea — Política de Privacidad{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+
+      <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Política de Privacidad</li>
+        </ol>
+      </nav>
+
+      <h1 class="h2 fw-bold mb-1">Política de Privacidad</h1>
+      <p class="text-body-secondary small mb-4">Última actualización: junio 2026</p>
+
+      <div class="card border shadow-sm">
+        <div class="card-body p-4 p-lg-5">
+
+          {# ── PEGÁ TU TEXTO AQUÍ ── #}
+
+          <h2 class="h5 fw-semibold mb-3">1. Responsable del tratamiento</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 1 -->
+            <strong>MONITOREA</strong> es responsable del tratamiento de los datos personales
+            recopilados a través de esta plataforma.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">2. Datos que recopilamos</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 2 -->
+            Recopilamos los siguientes datos al momento del registro y uso de la plataforma:
+          </p>
+          <ul class="text-body-secondary">
+            <li>Nombre de usuario y dirección de correo electrónico.</li>
+            <li>Nombre de empresa o establecimiento.</li>
+            <li>Datos de telemetría de los dispositivos IoT del usuario.</li>
+            <li>Datos de pago procesados a través de Mercado Pago (no almacenamos datos de tarjetas).</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">3. Finalidad del tratamiento</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 3 -->
+            Los datos recopilados se utilizan exclusivamente para:
+          </p>
+          <ul class="text-body-secondary">
+            <li>Gestionar la cuenta del usuario y proveer los servicios de la plataforma.</li>
+            <li>Procesar suscripciones y pagos.</li>
+            <li>Enviar notificaciones y alertas configuradas por el usuario.</li>
+            <li>Mejorar la experiencia de uso y el rendimiento del servicio.</li>
+          </ul>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">4. Compartición de datos con terceros</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 4 -->
+            MONITOREA no vende ni cede datos personales a terceros. Los pagos son procesados
+            por <strong>Mercado Pago</strong>, sujetos a su propia política de privacidad.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">5. Almacenamiento y seguridad</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 5 -->
+            Los datos se almacenan en servidores con medidas de seguridad adecuadas.
+            Las contraseñas se almacenan utilizando algoritmos de hashing seguros y nunca
+            en texto plano.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">6. Derechos del usuario</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 6 -->
+            El usuario tiene derecho a acceder, rectificar, suprimir o portar sus datos personales.
+            Para ejercer estos derechos, puede contactarnos en
+            <a href="mailto:contacto@monitorea.app">contacto@monitorea.app</a>.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">7. Cookies</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 7 -->
+            MONITOREA utiliza cookies de sesión estrictamente necesarias para el funcionamiento
+            de la plataforma. No utilizamos cookies de seguimiento o publicidad.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">8. Cambios en esta política</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 8 -->
+            Nos reservamos el derecho de actualizar esta Política. Los cambios serán notificados
+            a través de la plataforma.
+          </p>
+
+          <h2 class="h5 fw-semibold mt-4 mb-3">9. Contacto</h2>
+          <p class="text-body-secondary">
+            <!-- Reemplazá este párrafo con el texto real de tu cláusula 9 -->
+            Para consultas sobre privacidad escribinos a
+            <a href="mailto:contacto@monitorea.app">contacto@monitorea.app</a>.
+          </p>
+
+          {# ── FIN DEL TEXTO ── #}
+
+        </div>
+      </div>
+
+      <div class="mt-4 d-flex gap-3">
+        <a href="{% url 'terminos' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-file-text me-1"></i>Términos y Condiciones
+        </a>
+        <a href="/" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left me-1"></i>Volver al inicio
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

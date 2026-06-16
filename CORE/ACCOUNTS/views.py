@@ -61,3 +61,11 @@ def set_theme(request):
     except (json.JSONDecodeError, KeyError):
         pass
     return JsonResponse({'status': 'error'}, status=400)
+
+
+def terminos_view(request):
+    return render(request, 'ACCOUNTS/terminos.html')
+
+
+def privacidad_view(request):
+    return render(request, 'ACCOUNTS/privacidad.html')

@@ -5,15 +5,23 @@ from django.utils import timezone
 
 class Plan(models.Model):
     GRATUITO = 'gratuito'
-    PREMIUM  = 'premium'
+    PREMIUM  = 'premium'   # legacy (preexistente)
+    MENSUAL  = 'mensual'
+    ANUAL    = 'anual'
     TIPO_CHOICES = [
         (GRATUITO, 'Gratuito'),
         (PREMIUM,  'Premium'),
+        (MENSUAL,  'Mensual'),
+        (ANUAL,    'Anual'),
     ]
 
     nombre           = models.CharField(max_length=50, choices=TIPO_CHOICES, unique=True)
     precio_mensual   = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     descripcion      = models.TextField(blank=True)
+
+    def es_premium(self):
+        """True para cualquier tipo de plan de pago."""
+        return self.nombre in (self.PREMIUM, self.MENSUAL, self.ANUAL)
 
     def __str__(self):
         return self.get_nombre_display()
@@ -40,11 +48,15 @@ class Suscripcion(models.Model):
     estado             = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=ACTIVA)
     fecha_inicio       = models.DateTimeField(auto_now_add=True)
     fecha_vencimiento  = models.DateTimeField()
+    # ID de suscripción recurrente en Mercado Pago (preapproval id)
+    gateway_subscription_id = models.CharField(max_length=100, blank=True, null=True)
+    # Código de 6 dígitos para confirmar la anulación por correo
+    codigo_cancelacion      = models.CharField(max_length=6, blank=True, null=True)
 
     def esta_activa(self):
-        """Devuelve True si el plan es premium y la suscripción no venció."""
+        """Devuelve True si el plan es de pago y la suscripción no venció."""
         return (
-            self.plan.nombre == Plan.PREMIUM
+            self.plan.es_premium()
             and self.estado == self.ACTIVA
             and self.fecha_vencimiento > timezone.now()
         )

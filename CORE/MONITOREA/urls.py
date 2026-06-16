@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from ACCOUNTS.views import terminos_view, privacidad_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -24,4 +25,6 @@ urlpatterns = [
     path('', include('DASHBOARD.urls')),
     path('reportes/', include('REPORTES.urls')),
     path('alertas/', include('ALERTAS.urls')),
+    path('terminos/', terminos_view, name='terminos'),
+    path('privacidad/', privacidad_view, name='privacidad'),
 ]

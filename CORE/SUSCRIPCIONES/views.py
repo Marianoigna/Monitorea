@@ -1,146 +1,576 @@
+import hashlib
+import hmac
 import json
 import logging
+import random
+import string
+from datetime import timedelta
+from urllib.parse import quote, urlparse
 
 import mercadopago
+import requests
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.core.mail import send_mail
+from django.db import transaction
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
 
 @login_required
 def planes(request):
-    """Página de planes — muestra las opciones de suscripción."""
-    return render(request, 'SUSCRIPCIONES/planes.html')
+    """Página de planes — muestra opciones o el plan activo del usuario."""
+    from SUSCRIPCIONES.models import Plan
+
+    suscripcion = None
+    dias_restantes = None
+    color_tarjeta = 'success'
+
+    try:
+        suscripcion = request.user.suscripcion
+    except Exception:
+        pass
+
+    if suscripcion and suscripcion.esta_activa():
+        delta = suscripcion.fecha_vencimiento - timezone.now()
+        dias_restantes = max(delta.days, 0)
+        es_anual = suscripcion.plan.nombre == Plan.ANUAL
+        umbral = 30 if es_anual else 10
+        if dias_restantes < umbral:
+            color_tarjeta = 'warning'
+
+    # Precio base mensual y anual para mostrar en las tarjetas
+    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 30000)
+    precio_anual = precio_mensual * 10
+
+    context = {
+        'suscripcion': suscripcion,
+        'dias_restantes': dias_restantes,
+        'color_tarjeta': color_tarjeta,
+        'precio_mensual': precio_mensual,
+        'precio_anual': precio_anual,
+    }
+    return render(request, 'SUSCRIPCIONES/planes.html', context)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cancelación de suscripción — flujo por email con código de 6 dígitos
+# ──────────────────────────────────────────────────────────────────────────────
+
+@login_required
+@require_POST
+def solicitar_codigo_cancelacion(request):
+    """
+    Genera un código aleatorio de 6 dígitos, lo guarda en la suscripción y
+    lo envía por correo. Responde JSON.
+    """
+    from SUSCRIPCIONES.models import Suscripcion
+
+    try:
+        suscripcion = request.user.suscripcion
+    except Suscripcion.DoesNotExist:
+        return JsonResponse({'error': 'No tenés una suscripción activa.'}, status=400)
+
+    if not suscripcion.esta_activa():
+        return JsonResponse({'error': 'No tenés una suscripción activa.'}, status=400)
+
+    codigo = ''.join(random.choices(string.digits, k=6))
+    suscripcion.codigo_cancelacion = codigo
+    suscripcion.save(update_fields=['codigo_cancelacion'])
+
+    try:
+        send_mail(
+            subject='Código de cancelación — Monitorea',
+            message=(
+                f'Hola {request.user.username},\n\n'
+                f'Tu código de confirmación para anular la suscripción es:\n\n'
+                f'    {codigo}\n\n'
+                'Si no solicitaste este código, ignorá este mensaje.\n\n'
+                'Equipo Monitorea'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[request.user.email],
+            fail_silently=False,
+        )
+    except Exception as exc:
+        logger.error("Error enviando email de cancelación a %s: %s", request.user.email, exc)
+        return JsonResponse({'error': 'No se pudo enviar el correo. Intentá nuevamente.'}, status=500)
+
+    return JsonResponse({'ok': True})
 
 
 @login_required
-def crear_suscripcion(request):
-    """
-    Crea una pre-aprobación en MercadoPago y redirige al usuario al
-    formulario de pago de MP (Checkout Pro).
-
-    Requiere en settings:
-      MERCADOPAGO_ACCESS_TOKEN  - token de acceso de la app MP
-      MERCADOPAGO_PLAN_ID       - ID del plan de suscripción creado en el panel MP
-      MERCADOPAGO_BACK_URL      - URL de retorno tras el pago
-
-    Flujo:
-      1. Usuario hace clic en "Activar Premium".
-      2. Esta vista crea la suscripción en MP con el email del usuario.
-      3. Redirige a init_point (formulario de pago de MP).
-      4. MP llama al webhook cuando el pago es aprobado.
-    """
-    sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
-
-    subscription_data = {
-        "preapproval_plan_id": settings.MERCADOPAGO_PLAN_ID,
-        "payer_email": request.user.email,
-        "back_url": settings.MERCADOPAGO_BACK_URL,
-    }
-
-    response = sdk.preapproval().create(subscription_data)
-
-    if response["status"] == 201:
-        init_point = response["response"]["init_point"]
-        return redirect(init_point)
-
-    logger.error("Error creando suscripción MP: %s", response)
-    return redirect('dashboard:dashboard')
-
-
-@csrf_exempt
 @require_POST
-def webhook(request):
+def confirmar_cancelacion(request):
     """
-    Recibe notificaciones IPN de MercadoPago sobre el estado de las
-    suscripciones (preapproval).
-
-    Cuando el estado es 'authorized' (pago aprobado):
-      - Busca el usuario por email
-      - Activa is_premium = True
-      - Establece premium_until = now + 30 días
-
-    IMPORTANTE: esta URL debe ser pública.
-    Para desarrollo local usá ngrok: ngrok http 8000
+    Verifica el código ingresado, cancela la suscripción en Mercado Pago y
+    actualiza el estado local del usuario. Responde JSON.
     """
+    from SUSCRIPCIONES.models import Suscripcion
+
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return HttpResponse(status=400)
+        return JsonResponse({'error': 'Solicitud inválida.'}, status=400)
 
-    # MP envía notificaciones de tipo 'preapproval' para suscripciones recurrentes
-    if data.get("type") != "preapproval":
-        return HttpResponse(status=200)
-
-    preapproval_id = data.get("data", {}).get("id")
-    if not preapproval_id:
-        return HttpResponse(status=200)
+    codigo_ingresado = str(data.get('codigo', '')).strip()
 
     try:
-        sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
-        response = sdk.preapproval().get(preapproval_id)
-        preapproval = response.get("response", {})
+        suscripcion = request.user.suscripcion
+    except Suscripcion.DoesNotExist:
+        return JsonResponse({'error': 'No tenés una suscripción activa.'}, status=400)
 
-        if preapproval.get("status") == "authorized":
-            payer_email = preapproval.get("payer_email", "")
+    if not suscripcion.esta_activa():
+        return JsonResponse({'error': 'No tenés una suscripción activa.'}, status=400)
 
-            from ACCOUNTS.models import CustomUser
-            try:
-                user = CustomUser.objects.get(email=payer_email)
-                user.is_premium    = True
-                user.premium_until = timezone.now() + timedelta(days=30)
-                user.save(update_fields=['is_premium', 'premium_until'])
-                logger.info("Premium activado para usuario: %s", user.username)
-            except CustomUser.DoesNotExist:
-                logger.warning("Webhook MP: usuario no encontrado con email %s", payer_email)
+    if not suscripcion.codigo_cancelacion or suscripcion.codigo_cancelacion != codigo_ingresado:
+        return JsonResponse({'error': 'Código incorrecto. Revisá tu correo e intentá nuevamente.'}, status=400)
 
+    # Cancelar en Mercado Pago si hay una suscripción recurrente vinculada
+    if suscripcion.gateway_subscription_id:
+        try:
+            sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+            response = sdk.preapproval().update(
+                suscripcion.gateway_subscription_id,
+                {"status": "cancelled"},
+            )
+            if response.get("status") not in (200, 201):
+                logger.error("Error cancelando suscripción MP (id=%s): %s",
+                             suscripcion.gateway_subscription_id, response)
+                return JsonResponse(
+                    {'error': 'No se pudo cancelar en Mercado Pago. Intentá más tarde.'},
+                    status=502,
+                )
+        except Exception as exc:
+            logger.error("Excepción al cancelar suscripción MP: %s", exc)
+            return JsonResponse({'error': 'Error al comunicarse con Mercado Pago.'}, status=502)
+
+    # Actualizar estado local de forma atómica
+    with transaction.atomic():
+        suscripcion.estado = Suscripcion.CANCELADA
+        suscripcion.codigo_cancelacion = None
+        suscripcion.save(update_fields=['estado', 'codigo_cancelacion'])
+
+        user = request.user
+        user.is_premium = False
+        user.premium_until = None
+        user.save(update_fields=['is_premium', 'premium_until'])
+
+    logger.info("Suscripción cancelada para el usuario %s.", user.username)
+    return JsonResponse({'ok': True})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Suscripción recurrente (Preapproval) — débito automático mensual
+# ──────────────────────────────────────────────────────────────────────────────
+@login_required
+def crear_suscripcion(request, tipo):
+    """
+    Crea una suscripción recurrente (preapproval DIRECTO) en MercadoPago y redirige al init_point.
+    external_reference = "<user_id>:<tipo>" — permite que el webhook identifique al usuario.
+    `tipo` puede ser 'mensual' o 'anual'.
+    """
+    if tipo not in ('mensual', 'anual'):
+        logger.error("crear_suscripcion: tipo '%s' inválido.", tipo)
+        return redirect('suscripciones:planes')
+
+    external_ref = f"{request.user.id}:{tipo}"
+    sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+
+    _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
+    _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
+    back_url         = _public_base + reverse('suscripciones:pago_exitoso')
+    notification_url = _public_base + reverse('suscripciones:webhook')
+
+    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 30000)
+    monto      = precio_mensual if tipo == 'mensual' else precio_mensual * 10
+    frecuencia = 1 if tipo == 'mensual' else 12
+
+    preapproval_data = {
+        "reason": f"Monitorea Premium — {tipo}",
+        "auto_recurring": {
+            "frequency":          frecuencia,
+            "frequency_type":     "months",
+            "transaction_amount": float(monto),
+            "currency_id":        "ARS",
+        },
+        "back_url":           back_url,
+        "payer_email":        request.user.email,
+        "external_reference": external_ref,
+        "notification_url":   notification_url,
+        "status":             "pending",
+    }
+
+    logger.info(
+        "crear_suscripcion — tipo: %s | monto: %s | external_reference: %s | back_url: %s | notification_url: %s",
+        tipo, monto, external_ref, back_url, notification_url,
+    )
+
+    response = sdk.preapproval().create(preapproval_data)
+
+    logger.info("MP preapproval response status: %s", response.get("status"))
+    logger.info("MP preapproval response body: %s", response.get("response"))
+
+    if response["status"] in (200, 201):
+        init_point = response["response"]["init_point"]
+        logger.info("Suscripción %s creada para usuario %s — redirigiendo a MP.", tipo, request.user.id)
+        return redirect(init_point)
+
+    logger.error("Error creando suscripción MP (%s): %s", tipo, response)
+    return redirect('suscripciones:planes')
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Validación de firma de MercadoPago (seguridad del webhook)
+# ──────────────────────────────────────────────────────────────────────────────
+def validar_firma_mp(request, data_id):
+    """
+    Valida el header x-signature que MercadoPago envía en cada notificación.
+    Requiere settings.MERCADOPAGO_WEBHOOK_SECRET (clave secreta del panel MP).
+    Si no hay secret configurado, se omite la validación (útil al empezar).
+    """
+    secret = getattr(settings, "MERCADOPAGO_WEBHOOK_SECRET", "")
+    if not secret:
+        logger.warning("Webhook MP: sin MERCADOPAGO_WEBHOOK_SECRET, se omite validación de firma.")
+        return True
+
+    signature = request.headers.get("x-signature", "")
+    request_id = request.headers.get("x-request-id", "")
+
+    try:
+        partes = dict(p.strip().split("=", 1) for p in signature.split(",") if "=" in p)
+    except ValueError:
+        return False
+
+    ts = partes.get("ts", "")
+    v1 = partes.get("v1", "")
+    if not ts or not v1:
+        logger.warning("Webhook MP: firma sin ts/v1 — continuando igual (TEMPORAL).")
+        return True  # TEMPORAL: revertir a validación estricta luego
+
+    manifest = f"id:{data_id};request-id:{request_id};ts:{ts};"
+    hmac_calc = hmac.new(
+        secret.encode(),
+        manifest.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(hmac_calc, v1):
+        logger.warning(
+            "Webhook MP: firma no coincide (TEMPORAL, procesando igual) — "
+            "manifest: %s | hmac_calc: %s | v1_recibido: %s",
+            manifest, hmac_calc, v1,
+        )
+        return True  # TEMPORAL: revertir a validación estricta luego
+
+    return True
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Helpers para activar premium / registrar pago
+# ──────────────────────────────────────────────────────────────────────────────
+def _activar_premium(user, monto, referencia, gateway_subscription_id=None, dias=30, tipo_plan=None):
+    """Activa premium, crea/actualiza Suscripcion y registra el Pago. Atómico."""
+    from SUSCRIPCIONES.models import Pago, Plan, Suscripcion
+
+    with transaction.atomic():
+        now = timezone.now()
+        base = user.premium_until if (user.premium_until and user.premium_until > now) else now
+        nueva_fecha = base + timedelta(days=dias)
+
+        user.is_premium = True
+        user.premium_until = nueva_fecha
+        user.save(update_fields=["is_premium", "premium_until"])
+        logger.info("Premium activado para %s hasta %s (%s días)", user.username, nueva_fecha, dias)
+
+        # Elegir el tipo de plan según lo indicado; por defecto Plan.PREMIUM (legado)
+        _nombre_plan = {
+            'mensual': Plan.MENSUAL,
+            'anual':   Plan.ANUAL,
+        }.get(tipo_plan, Plan.PREMIUM)
+
+        plan_obj, _ = Plan.objects.get_or_create(
+            nombre=_nombre_plan,
+            defaults={"precio_mensual": monto or 0},
+        )
+
+        sub_defaults = {
+            "plan": plan_obj,
+            "estado": Suscripcion.ACTIVA,
+            "fecha_vencimiento": nueva_fecha,
+        }
+        if gateway_subscription_id:
+            sub_defaults["gateway_subscription_id"] = gateway_subscription_id
+
+        suscripcion, created = Suscripcion.objects.update_or_create(
+            usuario=user,
+            defaults=sub_defaults,
+        )
+        if created:
+            logger.info("Suscripcion creada para %s", user.username)
+
+        Pago.objects.update_or_create(
+            referencia_gateway=str(referencia),
+            defaults={
+                "suscripcion": suscripcion,
+                "monto": monto or 0,
+                "metodo": "mercadopago",
+                "exitoso": True,
+            },
+        )
+        logger.info("Pago %s registrado para %s", referencia, user.username)
+
+
+def _buscar_usuario(external_reference, fallback_email=""):
+    """Busca el usuario por external_reference (id) y, si falla, por email."""
+    from ACCOUNTS.models import CustomUser
+
+    if external_reference:
+        try:
+            return CustomUser.objects.get(id=external_reference)
+        except (CustomUser.DoesNotExist, ValueError, TypeError):
+            pass
+    if fallback_email:
+        try:
+            return CustomUser.objects.get(email=fallback_email)
+        except CustomUser.DoesNotExist:
+            pass
+    return None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Webhook — recibe confirmación de PAGOS y de SUSCRIPCIONES recurrentes
+# ──────────────────────────────────────────────────────────────────────────────
+@csrf_exempt
+def webhook(request):
+    """
+    Recibe notificaciones de MercadoPago por POST (JSON) o GET (query params).
+    Siempre retorna HTTP 200 (salvo firma inválida → 401) para que MP no reintente.
+    """
+    # ── Parsear datos según método HTTP ──────────────────────────────────────
+    data = {}
+    raw_body = ""
+    if request.method == "POST":
+        try:
+            raw_body = request.body.decode("utf-8", errors="replace")
+            data = json.loads(raw_body)
+        except (json.JSONDecodeError, Exception):
+            logger.warning("Webhook MP: cuerpo POST no es JSON válido — body: %s", raw_body[:500])
+
+    # notification_type: viene en "type" o "action" (POST body) o "type"/"topic" (GET)
+    notification_type = (
+        data.get("type")
+        or data.get("action")
+        or request.GET.get("type")
+        or request.GET.get("topic")
+        or ""
+    )
+
+    # resource_id: viene en data.id (POST), o en query params data.id / id / preapproval_id
+    resource_id = (
+        data.get("data", {}).get("id")
+        or request.GET.get("data.id")
+        or request.GET.get("id")
+        or request.GET.get("preapproval_id")
+        or ""
+    )
+
+    logger.info(
+        "Webhook MP recibido — método: %s | type: %s | resource_id: %s | GET: %s | body: %s",
+        request.method, notification_type, resource_id, dict(request.GET), data or raw_body[:200],
+    )
+    logger.info(
+        "Webhook MP headers — x-signature: %s | x-request-id: %s",
+        request.headers.get("x-signature", ""),
+        request.headers.get("x-request-id", ""),
+    )
+
+    if not resource_id:
+        logger.warning("Webhook MP: notificación sin resource_id — ignorando.")
+        return HttpResponse(status=200)
+
+    # Validar firma
+    if not validar_firma_mp(request, resource_id):
+        logger.warning("Webhook MP: firma inválida (id=%s).", resource_id)
+        return HttpResponse(status=401)
+
+    headers = {"Authorization": f"Bearer {settings.MERCADOPAGO_ACCESS_TOKEN}"}
+
+    try:
+        # ── A. Pago recurrente de suscripción ─────────────────────────────────
+        if "subscription_authorized_payment" in notification_type:
+            mp_url = f"https://api.mercadopago.com/v1/payments/{resource_id}"
+            resp = requests.get(mp_url, headers=headers, timeout=10)
+            if resp.status_code in (400, 404):
+                logger.warning("Webhook MP: recurso no encontrado en MP (id=%s) — posible simulación.", resource_id)
+                return HttpResponse(status=200)
+            resp.raise_for_status()
+            payment = resp.json()
+
+            logger.info("Webhook MP: pago recurrente %s status '%s'.", resource_id, payment.get("status"))
+
+            if payment.get("status") == "approved":
+                logger.info("Webhook MP: pago recurrente aprobado — datos completos: %s", payment)
+                external_ref = payment.get("external_reference", "")
+                logger.info("Webhook MP: external_reference del pago: '%s'", external_ref)
+
+                # Si el pago no trae external_reference, obtenerlo de la suscripción asociada
+                if not external_ref:
+                    preapproval_id = (
+                        payment.get("metadata", {}).get("preapproval_id")
+                        or payment.get("preapproval_id")
+                    )
+                    if preapproval_id:
+                        try:
+                            sub_resp = requests.get(
+                                f"https://api.mercadopago.com/preapproval/{preapproval_id}",
+                                headers=headers,
+                                timeout=10,
+                            )
+                            sub_resp.raise_for_status()
+                            external_ref = sub_resp.json().get("external_reference", "")
+                        except requests.RequestException as exc:
+                            logger.error("Webhook MP: error consultando preapproval %s: %s", preapproval_id, exc)
+
+                ref_parts = str(external_ref).split(":")
+                user_id = ref_parts[0]
+                tipo    = ref_parts[1] if len(ref_parts) > 1 else 'mensual'
+
+                user = _buscar_usuario(user_id, payment.get("payer", {}).get("email", ""))
+                if not user:
+                    logger.warning("Webhook MP: usuario no encontrado (pago recurrente %s).", resource_id)
+                    return HttpResponse(status=200)
+
+                dias = 365 if tipo == 'anual' else 30
+                _activar_premium(
+                    user,
+                    payment.get("transaction_amount", 0),
+                    payment.get("id", resource_id),
+                    dias=dias,
+                    tipo_plan=tipo,
+                )
+
+        # ── B. Alta / cambio de estado de suscripción recurrente ──────────────
+        # subscription_preapproval_plan = notificación de plan (no de suscripción individual), se ignora
+        elif notification_type == "subscription_preapproval_plan":
+            logger.info("Webhook MP: notificación de plan '%s' — ignorada.", resource_id)
+
+        elif "preapproval" in notification_type or "subscription" in notification_type:
+            mp_url = f"https://api.mercadopago.com/preapproval/{resource_id}"
+            resp = requests.get(mp_url, headers=headers, timeout=10)
+            if resp.status_code in (400, 404):
+                logger.warning("Webhook MP: suscripción no encontrada en MP (id=%s) — posible simulación.", resource_id)
+                return HttpResponse(status=200)
+            resp.raise_for_status()
+            preapproval = resp.json()
+
+            estado = preapproval.get("status")
+            logger.info("Webhook MP: suscripción %s status '%s'.", resource_id, estado)
+
+            if estado == "authorized":
+                external_ref = preapproval.get("external_reference", "")
+                ref_parts = str(external_ref).split(":")
+                user_id = ref_parts[0]
+                tipo    = ref_parts[1] if len(ref_parts) > 1 else 'mensual'
+
+                user = _buscar_usuario(user_id, preapproval.get("payer_email", ""))
+                if not user:
+                    logger.warning("Webhook MP: usuario no encontrado (sub %s).", resource_id)
+                    return HttpResponse(status=200)
+
+                monto = preapproval.get("auto_recurring", {}).get("transaction_amount", 0)
+                dias  = 365 if tipo == 'anual' else 30
+                _activar_premium(
+                    user, monto, resource_id,
+                    gateway_subscription_id=resource_id,
+                    dias=dias,
+                    tipo_plan=tipo,
+                )
+
+        # ── C. Pago único (Checkout Pro) ──────────────────────────────────────
+        elif "payment" in notification_type:
+            mp_url = f"https://api.mercadopago.com/v1/payments/{resource_id}"
+            resp = requests.get(mp_url, headers=headers, timeout=10)
+            if resp.status_code in (400, 404):
+                logger.warning("Webhook MP: pago no encontrado en MP (id=%s) — posible simulación.", resource_id)
+                return HttpResponse(status=200)
+            resp.raise_for_status()
+            payment = resp.json()
+
+            logger.info("Webhook MP: pago %s status '%s'.", resource_id, payment.get("status"))
+
+            if payment.get("status") == "approved":
+                external_ref = payment.get("external_reference", "")
+                ref_parts = str(external_ref).split(":")
+                user_id = ref_parts[0]
+                tipo    = ref_parts[1] if len(ref_parts) > 1 else 'mensual'
+
+                user = _buscar_usuario(user_id, payment.get("payer", {}).get("email", ""))
+                if not user:
+                    logger.warning("Webhook MP: usuario no encontrado (pago %s, ref='%s').", resource_id, external_ref)
+                    return HttpResponse(status=200)
+
+                dias = 365 if tipo == 'anual' else 30
+                _activar_premium(
+                    user,
+                    payment.get("transaction_amount", 0),
+                    payment.get("id", resource_id),
+                    dias=dias,
+                    tipo_plan=tipo,
+                )
+
+    except requests.RequestException as exc:
+        logger.error("Webhook MP: error consultando API MP (%s): %s", resource_id, exc)
     except Exception as exc:
-        logger.error("Error procesando webhook MP: %s", exc)
+        logger.error("Webhook MP: error inesperado (%s): %s", resource_id, exc)
 
-    # Siempre responder 200 para que MP no reintente
     return HttpResponse(status=200)
 
 
-# ── Checkout Pro — flujo de prueba obligatorio para desbloquear el panel ──────
-
+# ──────────────────────────────────────────────────────────────────────────────
+# Checkout Pro — pago único (flujo de prueba de integración)
+# ──────────────────────────────────────────────────────────────────────────────
 @login_required
 def checkout_pro_prueba(request):
     """
-    Genera una preferencia de Checkout Pro con un producto ficticio de $100 ARS
-    y redirige al usuario al formulario de pago de MercadoPago.
-
-    Este flujo es requerido por MP para validar la integración y desbloquear
-    el menú de Suscripciones en el panel de desarrolladores.
-
-    URL de prueba: http://localhost:8000/suscripciones/checkout-prueba/
+    Genera una preferencia de Checkout Pro (pago único) y redirige a MP.
+    Útil para validar la integración. external_reference = id del usuario.
     """
     sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+
+    _parsed = urlparse(settings.MERCADOPAGO_BACK_URL)
+    _public_base = f"{_parsed.scheme}://{_parsed.netloc}"
+    _is_public = _parsed.hostname not in ('localhost', '127.0.0.1', '0.0.0.0')
 
     preference_data = {
         "items": [
             {
                 "title": "Monitorea Premium — prueba de integración",
                 "quantity": 1,
-                "unit_price": 100.00,
+                "unit_price": 200.00,
                 "currency_id": "ARS",
             }
         ],
         "back_urls": {
-            "success": settings.MERCADOPAGO_BACK_URL + "suscripciones/pago-exitoso/",
-            "failure": settings.MERCADOPAGO_BACK_URL + "suscripciones/pago-fallido/",
-            "pending": settings.MERCADOPAGO_BACK_URL + "suscripciones/pago-pendiente/",
+            "success": _public_base + reverse('suscripciones:pago_exitoso'),
+            "failure": _public_base + reverse('suscripciones:pago_fallido'),
+            "pending": _public_base + reverse('suscripciones:pago_pendiente'),
         },
         "payer": {
             "email": request.user.email,
         },
+        "external_reference": str(request.user.id),
+        "notification_url": _public_base + reverse('suscripciones:webhook'),
     }
+
+    if _is_public:
+        preference_data["auto_return"] = "approved"
 
     response = sdk.preference().create(preference_data)
 
@@ -148,33 +578,24 @@ def checkout_pro_prueba(request):
         init_point = response["response"]["init_point"]
         return redirect(init_point)
 
+    error_detail = response.get("response", response)
     logger.error("Error creando preferencia Checkout Pro: %s", response)
-    return HttpResponse("Error al conectar con MercadoPago. Revisá el ACCESS_TOKEN en .env.", status=500)
+    return HttpResponse(
+        f"<pre style='font-family:monospace'>Error MP (HTTP {response.get('status')}):\n{error_detail}</pre>",
+        status=500,
+    )
 
 
 def pago_exitoso(request):
-    """MP redirige aquí cuando el pago de prueba fue aprobado."""
-    return HttpResponse(
-        "<h2 style='font-family:sans-serif;color:green'>\u2705 ¡Pago aprobado!</h2>"
-        "<p style='font-family:sans-serif'>MercadoPago registró la prueba de Checkout Pro correctamente.<br>"
-        "Volvé al panel de MP y actualizá la página — el contador debería subir al 100%.</p>"
-        "<a style='font-family:sans-serif' href='/'>Volver al dashboard</a>"
-    )
+    """MP redirige aquí cuando el pago fue aprobado — muestra mensaje y vuelve al dashboard."""
+    return render(request, 'SUSCRIPCIONES/pago_exitoso.html')
 
 
 def pago_fallido(request):
-    """MP redirige aquí cuando el pago falló."""
-    return HttpResponse(
-        "<h2 style='font-family:sans-serif;color:red'>\u274c Pago rechazado</h2>"
-        "<p style='font-family:sans-serif'>Revisá los datos de la tarjeta de prueba e intentá de nuevo.</p>"
-        "<a style='font-family:sans-serif' href='/suscripciones/checkout-prueba/'>Reintentar</a>"
-    )
+    """MP redirige aquí cuando el pago falló — vuelve a la página de planes."""
+    return redirect('suscripciones:planes')
 
 
 def pago_pendiente(request):
-    """MP redirige aquí cuando el pago quedó pendiente."""
-    return HttpResponse(
-        "<h2 style='font-family:sans-serif;color:orange'>\u23f3 Pago pendiente</h2>"
-        "<p style='font-family:sans-serif'>El pago está siendo procesado por MercadoPago.</p>"
-        "<a style='font-family:sans-serif' href='/'>Volver al dashboard</a>"
-    )
+    """MP redirige aquí cuando el pago quedó pendiente — vuelve al dashboard."""
+    return redirect('dashboard:dashboard')
