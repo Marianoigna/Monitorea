@@ -46,7 +46,7 @@ def planes(request):
             color_tarjeta = 'warning'
 
     # Precio base mensual y anual para mostrar en las tarjetas
-    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 4999)
+    precio_mensual = getattr(settings, 'PRECIO_MENSUAL', 30000)
     precio_anual = precio_mensual * 10
 
     context = {
