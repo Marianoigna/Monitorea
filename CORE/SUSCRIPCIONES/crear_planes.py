@@ -10,8 +10,8 @@ headers = {
 }
 
 planes = {
-    "mensual": {"frequency": 1,  "frequency_type": "months", "transaction_amount": 30000.0},
-    "anual":   {"frequency": 12, "frequency_type": "months", "transaction_amount": 300000.0},
+    "mensual": {"frequency": 1,  "frequency_type": "months", "transaction_amount": 28000.0},
+    "anual":   {"frequency": 12, "frequency_type": "months", "transaction_amount": 280000.0},
 }
 
 for tipo, recurring in planes.items():
