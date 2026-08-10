@@ -201,7 +201,6 @@ def crear_suscripcion(request, tipo):
             "currency_id":        "ARS",
         },
         "back_url":           back_url,
-        "payer_email":        request.user.email,
         "external_reference": external_ref,
         "notification_url":   notification_url,
         "status":             "pending",
