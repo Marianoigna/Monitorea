@@ -1,9 +1,14 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es" data-bs-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Monitorea{% endblock %}</title>
+
+  <link rel="icon" type="image/png" href="{% static 'img/Loguisimo.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/Loguisimo.png' %}">
+  <meta name="theme-color" content="#0066ff">
 
   {# ── Inicializa el tema ANTES de que Bootstrap renderice para evitar flash ── #}
   <script>
