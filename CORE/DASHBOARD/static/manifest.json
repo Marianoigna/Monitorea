@@ -1,0 +1,24 @@
+{
+  "name": "Monitorea",
+  "short_name": "Monitorea",
+  "description": "Plataforma IoT de monitoreo de sensores en tiempo real",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0066ff",
+  "background_color": "#0a0e27",
+  "icons": [
+    {
+      "src": "/static/img/Loguisimo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/img/Loguisimo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
